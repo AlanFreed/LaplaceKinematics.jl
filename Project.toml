@@ -1,0 +1,18 @@
+name = "LaplaceKinematics"
+uuid = "9f71644a-9970-46c9-94ba-70c89ea29c7d"
+authors = ["Alan Freed <alan.d.freed@proton.me>"]
+version = "0.1.2"
+
+[deps]
+BSplineKit = "093aae92-e908-43d7-9660-e50ee39d5a0a"
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+FijLung = "ebee446b-172f-49a9-b275-e96df6489ead"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+PhysicalFields = "ecb0663d-aa47-424e-b5ff-03a0dca9671a"
+SortingAlgorithms = "a2af1166-a08f-5f64-846c-94a0d3cef48c"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[compat]
+julia = "1.9"
