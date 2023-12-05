@@ -1,33 +1,3 @@
-#=
-Created on Mon 22 Nov 2021
-updated on Mon 27 Nov 2023
--------------------------------------------------------------------------------
-This software, like the language it is written in, is published under the MIT
-License, https://opensource.org/licenses/MIT.
-
-Copyright (c) 2021-2023:
-Alan Freed and John Clayton
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
-SOFTWARE.
--------------------------------------------------------------------------------
-=#
-
 # Matrices P2D₁ and P2D₂ are the two possible permutation matrices in 2-space.
 
 one  = PhysicalScalar(1.0, DIMENSIONLESS)
@@ -48,20 +18,22 @@ Type:\n
         N       total node count for traversing a solution path\n
         n       a counter that ratchets from 1 to N+1\n
 
+        # 2D Laplace stretch attributes for a reference deformation of κ₀ ↦ κᵣ.\n
+        aᵣ      reference elongation (stretch) in 𝕚 direction\n
+        bᵣ      reference elongation (stretch) in 𝕛 direction\n
+        γᵣ      reference in-plane shear in (𝕚, 𝕛) plane\n
+
+        # History arrays of length N+1 for holding the kinematic fields.
+        # Initial values/conditions are stored in array location [1].
+
         # Array of nodal times.
         t       times at the solution nodes, i.e., the tₙ\n
 
-        # Unpivoted 2D deformation gradients for a deformation of κ₀ ↦ κₙ in (𝕚, 𝕛),
-        # where F₃₃, the third (thickness) direction, makes deformation isochoric.
+        # Unpivoted 2D deformation gradients for deformation κ₀ ↦ κₙ in (𝕚, 𝕛).
         F       deformation gradients at tₙ: Fₙ, κ₀ ↦ κₙ in (𝕚, 𝕛)\n
         F′      deformation gradient rates at tₙ: dFₙ/dtₙ, κₙ in (𝕚, 𝕛)\n
         P       permutation case at tₙ: i.e., i in Pᵢ, i ∈ {1, 2}\n
                 where {𝕖₁ 𝕖₂} = {𝕚 𝕛}[Pᵢ], i ∈ {1, 2}\n
-
-        # 2D Laplace stretch attributes for reference deformation κ₀ ↦ κᵣ\n
-        aᵣ      reference elongation in 𝕚 direction\n
-        bᵣ      reference elongation in 𝕛 direction\n
-        γᵣ      reference in-plane shear in (𝕚, 𝕛) plane\n
 
         # Gram angles of rotation and their rates at tₙ mapped to (𝕚, 𝕛)\n
         ωₙ      angular rotations ωₙ at tₙ:\n
@@ -94,22 +66,24 @@ struct MembraneKinematics
     # Properties of the arrays.
     dt::PhysicalScalar           # time step separating neighboring entries
     N::Integer                   # total number of steps or grid points
-    n::MInteger                  # a counter that ratchets from 1 to N
+    n::MInteger                  # a counter that ratchets from 1 to N+1
+
+    # 2D Laplace stretch attributes for a reference deformation of κ₀ ↦ κᵣ.
+    aᵣ::PhysicalScalar           # reference elongation (stretch) in 𝕚 direction
+    bᵣ::PhysicalScalar           # reference elongation (stretch) in 𝕛 direction
+    γᵣ::PhysicalScalar           # reference in-plane shear in (𝕚,𝕛) plane
+
+    # History arrays of length N+1 for holding the kinematic fields.
+    # Initial values/conditions are stored in array location [1].
 
     # Array of nodal times.
     t::ArrayOfPhysicalScalars    # times at the solution nodes, i.e., the tₙ
 
-    # Unpivoted 2D deformation gradients for a deformation of κ₀ ↦ κₙ in (𝕚, 𝕛),
-    # where F₃₃, the third (thickness) direction, makes deformation isochoric.
+    # Unpivoted 2D deformation gradients for a deformation of κ₀ ↦ κₙ in (𝕚, 𝕛).
     F::ArrayOfPhysicalTensors    # deformation gradients at tₙ: Fₙ κ₀ ↦ κₙ
     F′::ArrayOfPhysicalTensors   # deformation gradient rates at tₙ: dFₙ/dtₙ
     P::Vector                    # permutation case at tₙ: i.e., i in Pᵢ,
                                  # where {𝕖₁ 𝕖₂} = {𝕚 𝕛}[Pᵢ], i ∈ {1, 2}
-
-    # 2D Laplace stretch attributes for reference deformation κ₀ ↦ κᵣ
-    aᵣ::PhysicalScalar           # reference elongation in 𝕚 direction
-    bᵣ::PhysicalScalar           # reference elongation in 𝕛 direction
-    γᵣ::PhysicalScalar           # reference in-plane shear in (𝕚,𝕛) plane
 
     # Gram angles of rotation and their rates at tₙ mapped to (𝕚, 𝕛)\n
     ωₙ::ArrayOfPhysicalScalars   # angular rotations at tₙ: ωₙ
@@ -326,14 +300,14 @@ struct MembraneKinematics
         γ′[1] = γ′₀
 
         # Create and return a new data structure for Laplace kinematics in 2D.
-        new(d𝑡, N, n, t, F, F′, P, 𝑎ᵣ, 𝑏ᵣ, 𝑔ᵣ, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
+        new(d𝑡, N, n, 𝑎ᵣ, 𝑏ᵣ, 𝑔ᵣ, t, F, F′, P, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
     end
 
     # Internal constructor used by JSON3.
 
-    function MembraneKinematics(dt::PhysicalScalar, N::Integer, n::MInteger, t::ArrayOfPhysicalScalars, F::ArrayOfPhysicalTensors, F′::ArrayOfPhysicalTensors, P::Vector, aᵣ::PhysicalScalar, bᵣ::PhysicalScalar, γᵣ::PhysicalScalar, ωₙ::ArrayOfPhysicalScalars, ω′ₙ::ArrayOfPhysicalScalars, aₙ::ArrayOfPhysicalScalars, bₙ::ArrayOfPhysicalScalars, γₙ::ArrayOfPhysicalScalars, a′ₙ::ArrayOfPhysicalScalars, b′ₙ::ArrayOfPhysicalScalars, γ′ₙ::ArrayOfPhysicalScalars, δ::ArrayOfPhysicalScalars, ϵ::ArrayOfPhysicalScalars, γ::ArrayOfPhysicalScalars, δ′::ArrayOfPhysicalScalars, ϵ′::ArrayOfPhysicalScalars, γ′::ArrayOfPhysicalScalars)
+    function MembraneKinematics(dt::PhysicalScalar, N::Integer, n::MInteger, aᵣ::PhysicalScalar, bᵣ::PhysicalScalar, γᵣ::PhysicalScalar, t::ArrayOfPhysicalScalars, F::ArrayOfPhysicalTensors, F′::ArrayOfPhysicalTensors, P::Vector, ωₙ::ArrayOfPhysicalScalars, ω′ₙ::ArrayOfPhysicalScalars, aₙ::ArrayOfPhysicalScalars, bₙ::ArrayOfPhysicalScalars, γₙ::ArrayOfPhysicalScalars, a′ₙ::ArrayOfPhysicalScalars, b′ₙ::ArrayOfPhysicalScalars, γ′ₙ::ArrayOfPhysicalScalars, δ::ArrayOfPhysicalScalars, ϵ::ArrayOfPhysicalScalars, γ::ArrayOfPhysicalScalars, δ′::ArrayOfPhysicalScalars, ϵ′::ArrayOfPhysicalScalars, γ′::ArrayOfPhysicalScalars)
 
-        new(dt, N, n, t, F, F′, P, aᵣ, bᵣ, γᵣ, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
+        new(dt, N, n, aᵣ, bᵣ, γᵣ, t, F, F′, P, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
     end
 end # MembraneKinematics
 
@@ -343,13 +317,13 @@ function Base.:(copy)(k::MembraneKinematics)::MembraneKinematics
     dt  = copy(k.dt)
     N   = copy(k.N)
     n   = copy(k.n)
+    aᵣ  = copy(k.aᵣ)
+    bᵣ  = copy(k.bᵣ)
+    γᵣ  = copy(k.γᵣ)
     t   = copy(k.t)
     F   = copy(k.F)
     F′  = copy(k.F′)
     P   = copy(k.P)
-    aᵣ  = copy(k.aᵣ)
-    bᵣ  = copy(k.bᵣ)
-    γᵣ  = copy(k.γᵣ)
     ωₙ  = copy(k.ωₙ)
     ω′ₙ = copy(k.ω′ₙ)
     aₙ  = copy(k.aₙ)
@@ -364,20 +338,20 @@ function Base.:(copy)(k::MembraneKinematics)::MembraneKinematics
     ϵ′  = copy(k.ϵ′)
     γ   = copy(k.γ)
     γ′  = copy(k.γ′)
-    return MembraneKinematics(dt, N, n, t, F, F′, P, aᵣ, bᵣ, γᵣ, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
+    return MembraneKinematics(d𝑡, N, n, aᵣ, bᵣ, γᵣ, t, F, F′, P, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
 end
 
 function Base.:(deepcopy)(k::MembraneKinematics)::MembraneKinematics
     dt  = deepcopy(k.dt)
     N   = deepcopy(k.N)
     n   = deepcopy(k.n)
+    aᵣ  = deepcopy(k.aᵣ)
+    bᵣ  = deepcopy(k.bᵣ)
+    γᵣ  = deepcopy(k.γᵣ)
     t   = deepcopy(k.t)
     F   = deepcopy(k.F)
     F′  = deepcopy(k.F′)
     P   = deepcopy(k.P)
-    aᵣ  = deepcopy(k.aᵣ)
-    bᵣ  = deepcopy(k.bᵣ)
-    γᵣ  = deepcopy(k.γᵣ)
     ωₙ  = deepcopy(k.ωₙ)
     ω′ₙ = deepcopy(k.ω′ₙ)
     aₙ  = deepcopy(k.aₙ)
@@ -392,7 +366,7 @@ function Base.:(deepcopy)(k::MembraneKinematics)::MembraneKinematics
     ϵ′  = deepcopy(k.ϵ′)
     γ   = deepcopy(k.γ)
     γ′  = deepcopy(k.γ′)
-    return MembraneKinematics(dt, N, n, t, F, F′, P, aᵣ, bᵣ, γᵣ, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
+    return MembraneKinematics(d𝑡, N, n, aᵣ, bᵣ, γᵣ, t, F, F′, P, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
 end
 
 # The histories of MembraneKinematics are to be graphed, not printed, so a toString method is not provided for objects of this type.
@@ -484,8 +458,8 @@ function advance!(k::MembraneKinematics, F′ₙ::PhysicalTensor)
     if n == 2
         F₁ = k.F[1]
     elseif n == 3
-        F₁ = k.F[1]
         F₂ = k.F[2]
+        F₁ = k.F[1]
     else
         Fₙ₋₁ = k.F[n-1]
         Fₙ₋₂ = k.F[n-2]
