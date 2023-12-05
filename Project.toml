@@ -1,7 +1,7 @@
 name = "LaplaceKinematics"
 uuid = "9f71644a-9970-46c9-94ba-70c89ea29c7d"
 authors = ["Alan Freed <alan.d.freed@proton.me>"]
-version = "0.1.2"
+version = "0.1.3"
 
 [deps]
 BSplineKit = "093aae92-e908-43d7-9660-e50ee39d5a0a"
