@@ -1,32 +1,3 @@
-#=
-Created on Mon 22 Aug 2022
-Updated on Wed 23 Aug 2023
---------------------------------------------------------------------------------
-This software, like the language it is written in, is published under the MIT
-License, https://opensource.org/licenses/MIT.
-
-Copyright (c) 2022:
-Alan Freed and John Clayton
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-of the Software, and to permit persons to whom the Software is furnished to do
-so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
---------------------------------------------------------------------------------
-=#
-
 module testLaplaceKinematics1D
 
 using
@@ -49,14 +20,13 @@ function persistence(myDirPath::String)
 
     # Consider the reference and initial states to be the same, i.e., κᵣ = κ₁.
     Lᵣ = PhysicalScalar(1.0, CGS_LENGTH)
-    Aᵣ = PhysicalScalar(1.0, CGS_AREA)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     N = 3 # Considered so the JSON file would not be to big.
     dt = splineF.t[2] - splineF.t[1]
     L₀ = PhysicalScalar(1.0, CGS_LENGTH)
     F′₀ = splineF.F′[1]
-    k = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, Aᵣ, L₀)
+    k = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, L₀)
 
     # Populate this data structure.
     for n in 2:N
@@ -86,9 +56,6 @@ function persistence(myDirPath::String)
     if k.Lᵣ ≠ k1.Lᵣ
         equal = false
     end
-    if k.Aᵣ ≠ k1.Aᵣ
-        equal = false
-    end
     for i in 1:3
         if k.t[i] ≠ k1.t[i]
             equal = false
@@ -97,12 +64,6 @@ function persistence(myDirPath::String)
             equal = false
         end
         if k.L′[i] ≠ k1.L′[i]
-            equal = false
-        end
-        if k.A[i] ≠ k1.A[i]
-            equal = false
-        end
-        if k.A′[i] ≠ k1.A′[i]
             equal = false
         end
         if k.ϵ[i] ≠ k1.ϵ[i]
@@ -174,12 +135,11 @@ function figures1D(N::Integer, myDirPath::String)
     println("Building the Laplace kinematics data structures.")
     # Consider the reference and initial states to be the same, i.e., κᵣ = κ₁.
     Lᵣ = PhysicalScalar(1.0, CGS_LENGTH)
-    Aᵣ = PhysicalScalar(1.0, CGS_AREA)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     dt = PhysicalScalar(t1[2]-t1[1], CGS_SECOND)
     L₀ = PhysicalScalar(L1[1], CGS_LENGTH)
-    k1 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, Aᵣ, L₀)
+    k1 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, L₀)
     # Populate this data structure.
     L′ₙ = PhysicalScalar(CGS_VELOCITY)
     for n in 2:N
@@ -190,7 +150,7 @@ function figures1D(N::Integer, myDirPath::String)
     # Build a data structure for Laplace kinematics at lung location 2.
     set!(dt, t2[2]-t2[1])
     set!(L₀, L2[1])
-    k2 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, Aᵣ, L₀)
+    k2 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, L₀)
     # Populate this data structure.
     for n in 2:N
         set!(L′ₙ, L′2[n])
@@ -200,7 +160,7 @@ function figures1D(N::Integer, myDirPath::String)
     # Build a data structure for Laplace kinematics at lung location 3.
     set!(dt, t3[2]-t3[1])
     set!(L₀, L3[1])
-    k3 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, Aᵣ, L₀)
+    k3 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, L₀)
     # Populate this data structure.
     for n in 2:N
         set!(L′ₙ, L′3[n])
