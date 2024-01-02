@@ -250,7 +250,7 @@ function advance!(k::FiberKinematics, L′::PhysicalScalar)
     k.L′[n] = 𝐿′
 
     # Integrate fiber length rate using a backward difference formula (BDF).
-    if k.t[2] ≈ 0.5dt
+    if k.t[2] ≈ 0.5k.dt
         # Integrated for nodes located at the mid-point of each time step.
         if n == 2
             k.L[2] = k.L[1] + 0.5k.L′[2]*k.dt

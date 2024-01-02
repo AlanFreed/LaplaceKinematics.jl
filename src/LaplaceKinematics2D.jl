@@ -76,8 +76,8 @@ struct MembraneKinematics
     # History arrays of length N+1 for holding the kinematic fields.
     # Initial values/conditions are stored in array location [1].
 
-    # Array of nodal times.
-    t::ArrayOfPhysicalScalars    # times at the solution nodes, i.e., the tₙ
+    # Array of the independent variable, viz., array of nodal times.
+    t::ArrayOfPhysicalScalars    # time at the solution nodes, i.e., at tₙ
 
     # Unpivoted 2D deformation gradients for a deformation of κ₀ ↦ κₙ in (𝕚, 𝕛).
     F::ArrayOfPhysicalTensors    # deformation gradients at tₙ: Fₙ κ₀ ↦ κₙ
@@ -116,7 +116,7 @@ struct MembraneKinematics
 """
     Constructor:\n
         k = MembraneKinematics(dTime, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₀)\n
-    Returns a new data structure `k` of type `MembraneKinematics` that holds a variety of kinematic fields. Arguments include: (i) A differential step in time `dTime` that separates neighboring nodes, uniformly spaced in time, that belong to the data arrays that are to be populated. (ii) The number of grid points or nodes `N` where solutions are to be computed. (iii) A boolean flag `midPtQuad` that if true implies the nodal spacing is for a mid-point quadrature rule, and if false implies the nodal spacing is for an end-point quadrature rule. (iv) The reference Laplace stretch attributes, viz., `aᵣ`, `bᵣ` and `γᵣ`, against which isochoric strains are to be established. And (v) A deformation gradient `F₀` belonging to some initial configuration κ₀ evaluated in an user specified co-ordinate system with base vectors (𝕚, 𝕛). Laplace tensors are evaluated in a frame-indifferent co-ordinate system (𝕖₁, 𝕖₂) that are then mapped to the user's co-ordinate system (𝕚, 𝕛). It is in the (𝕚, 𝕛) co-ordinate system that the kinematic fields of this data structure are quantified in.
+    Returns a new data structure `k` of type `MembraneKinematics` that holds a variety of kinematic fields. Arguments include: (i) A differential step in time `dTime` that separates neighboring nodes, uniformly spaced in time, that belong to the data arrays that are to be populated. (ii) The number of grid points or nodes `N` where solutions are to be computed. (iii) A boolean flag `midPtQuad` that, if true, implies the nodal spacing is for a mid-point quadrature rule and, if false, implies the nodal spacing is for an end-point quadrature rule. This determines how the array of independent times is populated. (iv) The reference Laplace stretch attributes, viz., `aᵣ`, `bᵣ` and `γᵣ`, against which isochoric strains are to be established. And (v) A deformation gradient `F₀` belonging to some initial configuration κ₀ evaluated in an user specified co-ordinate system with base vectors (𝕚, 𝕛). Laplace tensors are evaluated in a frame-indifferent co-ordinate system (𝕖₁, 𝕖₂) that are then mapped to the user's co-ordinate system (𝕚, 𝕛). It is in the (𝕚, 𝕛) co-ordinate system that the kinematic fields of this data structure are quantified in.
 """
     function MembraneKinematics(dTime::PhysicalScalar, N::Integer, midPtQuad::Bool, aᵣ::PhysicalScalar, bᵣ::PhysicalScalar, γᵣ::PhysicalScalar, F₀::PhysicalTensor)
 
@@ -470,7 +470,7 @@ function advance!(k::MembraneKinematics, F′::PhysicalTensor)
 
     # Integrate F′ using a backward difference formula (BDF).
     Fₙ = PhysicalTensor(2, 2, DIMENSIONLESS)
-    if k.t[2] ≈ 0.5dt # Use quadrature nodes located at mid span.
+    if k.t[2] ≈ 0.5k.dt # Use quadrature nodes located at mid span.
         if n == 2
             F₁ = k.F[1]
         elseif n == 3
