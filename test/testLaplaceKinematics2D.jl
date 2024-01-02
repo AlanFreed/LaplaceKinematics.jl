@@ -25,6 +25,7 @@ function persistence(myDirPath::String)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     N = 3 # Considered so the JSON file would not be to big.
+    midPtQuad = false
     dt = splineF.t[2] - splineF.t[1]
     F = splineF.F[1]
     F₀ = PhysicalTensor(2, 2, CGS_DIMENSIONLESS)
@@ -38,7 +39,7 @@ function persistence(myDirPath::String)
     F′₀[1,2] = F′[1,2]
     F′₀[2,1] = F′[2,1]
     F′₀[2,2] = F′[2,2]
-    k = LaplaceKinematics.MembraneKinematics(dt, N, aᵣ, bᵣ, γᵣ, F₀)
+    k = LaplaceKinematics.MembraneKinematics(dt, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₀)
 
     # Populate this data structure.
     for n in 2:N

@@ -105,6 +105,7 @@ function figures1D(N::Integer, myDirPath::String)
         t2[n] = get(splineF2.t[n])
         t3[n] = get(splineF3.t[n])
     end
+    midPtQuad = false
 
     # These deformation gradient components associate with the 1 direction.
     println("Deformations are in the direction of the spine.")
@@ -140,7 +141,7 @@ function figures1D(N::Integer, myDirPath::String)
     # Build a data structure for Laplace kinematics at lung location 1.
     dt = PhysicalScalar(t1[2]-t1[1], CGS_SECOND)
     L₀ = PhysicalScalar(L1[1], CGS_LENGTH)
-    k1 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, L₀)
+    k1 = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, Lᵣ, L₀)
     # Populate this data structure.
     L′ₙ = PhysicalScalar(CGS_VELOCITY)
     for n in 2:N
@@ -151,7 +152,7 @@ function figures1D(N::Integer, myDirPath::String)
     # Build a data structure for Laplace kinematics at lung location 2.
     set!(dt, t2[2]-t2[1])
     set!(L₀, L2[1])
-    k2 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, L₀)
+    k2 = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, Lᵣ, L₀)
     # Populate this data structure.
     for n in 2:N
         set!(L′ₙ, L′2[n])
@@ -161,7 +162,7 @@ function figures1D(N::Integer, myDirPath::String)
     # Build a data structure for Laplace kinematics at lung location 3.
     set!(dt, t3[2]-t3[1])
     set!(L₀, L3[1])
-    k3 = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, L₀)
+    k3 = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, Lᵣ, L₀)
     # Populate this data structure.
     for n in 2:N
         set!(L′ₙ, L′3[n])
