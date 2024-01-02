@@ -1,6 +1,6 @@
 #=
 Created on Mon 22 Nov 2021
-updated on Tue 05 Dec 2023
+updated on Tue 02 Jan 2024
 -------------------------------------------------------------------------------
 References:
 1) Freed, A.D., Erel, V. and Moreno, M.R., "Conjugate stress/strain base pairs

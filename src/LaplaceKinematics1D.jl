@@ -51,13 +51,13 @@ struct FiberKinematics
 
 """
     Constructor:\n
-        k = FiberKinematics(dt, N, Lᵣ, L₀)\n
-    Returns a new data structure `k` of type `FiberKinematics` that holds kinematic fields pertinent to the modeling of a 1D fiber. Arguments are: (i) A differential step in time `dt` that separates neighboring nodes, which themselves are taken to be uniformly spaced in time. (ii) The total number of grid points or nodes `N` where solutions are to be computed. The data arrays are of length N+1 with initial values/conditions being stored at location [1] in these arrays. (iii) The reference (or strain free) length `Lᵣ` of a fiber against which strains are to be measured. And (iv) a fiber's initial length `L₀` in some initial configuration selected for analysis κ₀ where, typically, L₀ ≥ Lᵣ.
+        k = FiberKinematics(dTime, N, midPtQuad, Lᵣ, L₀)\n
+    Returns a new data structure `k` of type `FiberKinematics` that holds kinematic fields pertinent to the modeling of a 1D fiber. Arguments are: (i) A differential step in time `dTime` that separates neighboring nodes, which themselves are taken to be uniformly spaced in time. (ii) The total number of grid points or nodes `N` where solutions are to be computed. The data arrays are of length N+1 with initial values/conditions being stored at location [1] in these arrays. (iii) A boolean flag `midPtQuad` that, if true, implies the nodal spacing is for a mid-point quadrature rule and, if false, implies the nodal spacing is for an end-point quadrature rule. This determines how the array of independent times is populated. (iv) The reference (or strain free) length `Lᵣ` of a fiber against which strains are to be measured. And (v) a fiber's initial length `L₀` in some initial configuration selected for analysis κ₀ where, typically, L₀ ≥ Lᵣ.
 """
-    function FiberKinematics(dt::PhysicalScalar, N::Integer, Lᵣ::PhysicalScalar, L₀::PhysicalScalar)
+    function FiberKinematics(dTime::PhysicalScalar, N::Integer, midPtQuad::Bool, Lᵣ::PhysicalScalar, L₀::PhysicalScalar)
 
         # Convert all passed variables to CGS units.
-        d𝑡 = toCGS(dt)
+        dt = toCGS(dTime)
         𝐿ᵣ = toCGS(Lᵣ)
         𝐿₀ = toCGS(L₀)
 
@@ -66,12 +66,12 @@ struct FiberKinematics
         Lₘᵢₙ = PhysicalScalar(eps(Float32), LENGTH)
 
         # Verify inputs.
-        if d𝑡.units ≠ TIME
-            msg = "The time increment dt does not have units of time."
+        if dt.units ≠ TIME
+            msg = "The time increment dTime does not have units of time."
             throw(ErrorException(msg))
         end
-        if d𝑡 < tₘᵢₙ
-            msg = "The time increment dt must be positive valued."
+        if dt < tₘᵢₙ
+            msg = "The time increment dTime must be positive valued."
             throw(ErrorException(msg))
         end
         if N < 1
@@ -100,8 +100,16 @@ struct FiberKinematics
 
         # Create and populate an array for nodal times.
         t  = ArrayOfPhysicalScalars(N+1, TIME)
-        for n in 1:N
-            t[n+1] = n * d𝑡
+        if midPtQuad
+            # Assign times for a mid-point quadrature rule.
+            for n in 1:N
+                t[n+1] = 0.5dt + (n-1) * dt
+            end
+        else
+            # Assign times for an end-point quadrature rule.
+            for n in 1:N
+                t[n+1] = n * dt
+            end
         end
 
         # Create data arrays for the physical dimensions and their rates.
@@ -122,7 +130,7 @@ struct FiberKinematics
         ϵ′[1] = L′₀ / 𝐿₀
 
         # Return a new data structure for managing kinematics of a 1D fiber.
-        new(d𝑡, N, n, 𝐿ᵣ, t, L, L′, ϵ, ϵ′)
+        new(dt, N, n, 𝐿ᵣ, t, L, L′, ϵ, ϵ′)
     end
 
     # The internal constructor used by JSON3 and other external constructors.
@@ -217,9 +225,9 @@ end
 """
 Method:\n
     advance!(k::FiberKinematics, L′::PhysicalScalar)\n
-Method `advance!` moves a solution from previous step `n-1` to current step `n` along a solution path of N solution nodes by integrating its governing differential equation for length using a backward difference formula (BDF) when given the fiber's current time rate-of-change in length `L′`.\n
+Method `advance!` moves a solution from previous step `n-1` to current step `n` along a solution path of N solution nodes by integrating its governing differential equation for length using a backward difference formula (BDF) when given the fiber's time rate-of-change in length `L′`. For a time-step interval of [tₙ₋₁, tₙ], L′ = dL/dt associates with either time tₙ when using end-point quadrature, or with time (tₙ₋₁ + tₙ)/2 when using mid-point quadrature.\n
 
-This method updates counter `k.n` and entries to its history arrays at the nᵗʰ array location in the `k` data structure; specifically: length `k.L[n]` and its rate `k.L′[n]`, plus strain `k.ϵ[n]` and its rate `k.ϵ′[n]`.
+This method updates counter `k.n` and entries to its history arrays at the nᵗʰ array location in the `k` data structure; specifically: length `k.L[n]` and its rate `k.L′[n]`, plus strain `k.ϵ[n]` and its rate `k.ϵ′[n].` These fields are evaluated at either the end-point, i.e. at time tₙ, or at the mid-point, i.e. at time (tₙ₋₁ + tₙ)/2, according to the argument `midPtQuad` supplied to its constructor.
 """
 function advance!(k::FiberKinematics, L′::PhysicalScalar)
     # Advance the counter.
@@ -241,14 +249,32 @@ function advance!(k::FiberKinematics, L′::PhysicalScalar)
     end
     k.L′[n] = 𝐿′
 
-    # Integrate fiber length using a backward difference formula (BDF).
-    if n == 2
-        k.L[2] = k.L[1] + k.L′[2]*k.dt
-    elseif n == 3
-        k.L[3] = (4/3)*k.L[2] - (1/3)*k.L[1] + (2/3)*k.L′[3]*k.dt
+    # Integrate fiber length rate using a backward difference formula (BDF).
+    if k.t[2] ≈ 0.5dt
+        # Integrated for nodes located at the mid-point of each time step.
+        if n == 2
+            k.L[2] = k.L[1] + 0.5k.L′[2]*k.dt
+        elseif n == 3
+            L₁ = k.L[1] - 0.5k.L′[2]*k.dt
+            k.L[3] = (4/3)*k.L[2] - (1/3)*k.L₁ + (2/3)*k.L′[3]*k.dt
+        elseif n == 4
+            L₁ = k.L[1] - 0.5k.L′[2]*k.dt
+            k.L[4] = ((18/11)*k.L[3] - (9/11)*k.L[2] + (2/11)*k.L₁
+                   + (6/11)*k.L′[4]*k.dt)
+        else
+            k.L[n] = ((18/11)*k.L[n-1] - (9/11)*k.L[n-2] + (2/11)*k.L[n-3]
+                   + (6/11)*k.L′[n]*k.dt)
+        end
     else
-        k.L[n] = ((18/11)*k.L[n-1] - (9/11)*k.L[n-2] + (2/11)*k.L[n-3]
-               + (6/11)*k.L′[n]*k.dt)
+        # Integrated for nodes located at the end-point of each time step.
+        if n == 2
+            k.L[2] = k.L[1] + k.L′[2]*k.dt
+        elseif n == 3
+            k.L[3] = (4/3)*k.L[2] - (1/3)*k.L[1] + (2/3)*k.L′[3]*k.dt
+        else
+            k.L[n] = ((18/11)*k.L[n-1] - (9/11)*k.L[n-2] + (2/11)*k.L[n-3]
+                   + (6/11)*k.L′[n]*k.dt)
+        end
     end
 
     # Compute the current strain and its rate.
@@ -261,7 +287,7 @@ end # advance!
 """
 Method:\n
     update!(k::FiberKinematics, L′::PhysicalScalar)\n
-Method `update!` refines a solution at step `n` by re-integrating its governing differential equation for fiber length, thereby allowing for iterative improvements to be made on length rate `L′` from an external algorithm, e.g., a finite element engine. There is no need to call `update!` unless `L′` is being iteratively refined at step `n`, e.g., by some external optimization process.
+Method `update!` refines a solution at step `n` by re-integrating its governing differential equation for fiber length, thereby allowing for iterative improvements to be made on length rate `L′` from an external algorithm, e.g., a finite element engine. There is no need to call `update!` unless `L′` is being iteratively refined at step `n`, e.g., by some external optimization process. Here L′ = dL(k.t[n])/dt.
 """
 function update!(k::FiberKinematics, L′::PhysicalScalar)
     if k.n > 1
