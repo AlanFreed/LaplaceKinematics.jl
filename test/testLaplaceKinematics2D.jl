@@ -166,6 +166,7 @@ function figures2D(N::Integer, myDirPath::String)
         t2[n] = get(splineF2.t[n])
         t3[n] = get(splineF3.t[n])
     end
+    midPtQuad = false
 
     # These deformation gradient components associate with the 23 plane.
     println("Deformations are for the spine/breast-bone plane.")
@@ -286,7 +287,7 @@ function figures2D(N::Integer, myDirPath::String)
     F₁1[2,1] = Fᵢⱼ
     set!(Fᵢⱼ, F₂₂1[1])
     F₁1[2,2] = Fᵢⱼ
-    k1 = LaplaceKinematics.MembraneKinematics(dt1, N, aᵣ, bᵣ, γᵣ, F₁1)
+    k1 = LaplaceKinematics.MembraneKinematics(dt1, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₁1)
     # Populate this data structure.
     F′ₙ1 = PhysicalTensor(2, 2, CGS_STRETCH_RATE)
     for n in 2:N
@@ -312,7 +313,7 @@ function figures2D(N::Integer, myDirPath::String)
     F₁2[2,1] = Fᵢⱼ
     set!(Fᵢⱼ, F₂₂2[1])
     F₁2[2,2] = Fᵢⱼ
-    k2 = LaplaceKinematics.MembraneKinematics(dt2, N, aᵣ, bᵣ, γᵣ, F₁2)
+    k2 = LaplaceKinematics.MembraneKinematics(dt2, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₁2)
     F′ₙ2 = PhysicalTensor(2, 2, CGS_STRETCH_RATE)
     for n in 2:N
         set!(F′ᵢⱼ, F′₁₁2[n])
@@ -337,7 +338,7 @@ function figures2D(N::Integer, myDirPath::String)
     F₁3[2,1] = Fᵢⱼ
     set!(Fᵢⱼ, F₂₂3[1])
     F₁3[2,2] = Fᵢⱼ
-    k3 = LaplaceKinematics.MembraneKinematics(dt3, N, aᵣ, bᵣ, γᵣ, F₁3)
+    k3 = LaplaceKinematics.MembraneKinematics(dt3, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₁3)
     F′ₙ3 = PhysicalTensor(2, 2, CGS_STRETCH_RATE)
     for n in 2:N
         set!(F′ᵢⱼ, F′₁₁3[n])

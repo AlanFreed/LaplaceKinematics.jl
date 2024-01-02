@@ -26,7 +26,8 @@ function persistence(myDirPath::String)
     dt = splineF.t[2] - splineF.t[1]
     L₀ = PhysicalScalar(1.0, CGS_LENGTH)
     F′₀ = splineF.F′[1]
-    k = LaplaceKinematics.FiberKinematics(dt, N, Lᵣ, L₀)
+    midPtQuad = false
+    k = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, Lᵣ, L₀)
 
     # Populate this data structure.
     for n in 2:N
