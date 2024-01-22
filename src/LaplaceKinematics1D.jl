@@ -256,10 +256,10 @@ function advance!(k::FiberKinematics, L′::PhysicalScalar)
             k.L[2] = k.L[1] + 0.5k.L′[2]*k.dt
         elseif n == 3
             L₁ = k.L[1] - 0.5k.L′[2]*k.dt
-            k.L[3] = (4/3)*k.L[2] - (1/3)*k.L[1] + (2/3)*k.L′[3]*k.dt
+            k.L[3] = (4/3)*k.L[2] - (1/3)*L₁ + (2/3)*k.L′[3]*k.dt
         elseif n == 4
             L₁ = k.L[1] - 0.5k.L′[2]*k.dt
-            k.L[4] = ((18/11)*k.L[3] - (9/11)*k.L[2] + (2/11)*k.L[1]
+            k.L[4] = ((18/11)*k.L[3] - (9/11)*k.L[2] + (2/11)*L₁
                    + (6/11)*k.L′[4]*k.dt)
         else
             k.L[n] = ((18/11)*k.L[n-1] - (9/11)*k.L[n-2] + (2/11)*k.L[n-3]
