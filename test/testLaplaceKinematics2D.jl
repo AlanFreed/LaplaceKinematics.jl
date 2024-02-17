@@ -3,8 +3,8 @@ module testLaplaceKinematics2D
 using
     CairoMakie,      # Pixel based figure construction.
     FijLung,
-    PhysicalFields,
-    ..LaplaceKinematics
+    LaplaceKinematics,
+    PhysicalFields
 
 export
     figures2D,

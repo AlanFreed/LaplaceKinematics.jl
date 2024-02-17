@@ -3,8 +3,8 @@ module testLaplaceKinematics1D
 using
     CairoMakie,       # Pixel based figure construction.
     FijLung,
-    PhysicalFields,
-    ..LaplaceKinematics
+    LaplaceKinematics,
+    PhysicalFields
 
 export
     persistence,
@@ -14,19 +14,24 @@ export
 =#
 
 function persistence(myDirPath::String)
+    midPtQuad = false
+
     arrayOfTimes = FijLung.t_loc1()
     N = arrayOfTimes.array.len
-    splineF = FijLung.SplineF(1, N)
+    if midPtQuad
+        splineF = FijLung.splineAtMidPoints(1, N)
+    else
+        splineF = FijLung.splineAtEndPoints(1, N)
+    end
 
     # Consider the reference and initial states to be the same, i.e., κᵣ = κ₁.
     Lᵣ = PhysicalScalar(1.0, CGS_LENGTH)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     N = 3 # Considered so the JSON file would not be to big.
-    dt = splineF.t[2] - splineF.t[1]
+    dt = splineF.t[4] - splineF.t[3]
     L₀ = PhysicalScalar(1.0, CGS_LENGTH)
     F′₀ = splineF.F′[1]
-    midPtQuad = false
     k = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, Lᵣ, L₀)
 
     # Populate this data structure.
@@ -89,13 +94,21 @@ where\n
 This function tests the exported functions of `LaplaceKinematics` for the 1D case; specifically, in the 1 direction, viz., from shoulder to shoulder.
 """
 function figures1D(N::Integer, myDirPath::String)
+    midPtQuad = false
+
     CairoMakie.activate!(type = "png")
     println("For these figures, N = ", string(N), ".")
 
     println("Creating B-splines of the deformation gradient data.")
-    splineF1 = FijLung.SplineF(1, N) # lung location 1: near visceral pleura
-    splineF2 = FijLung.SplineF(2, N) # lung location 2: deep lung
-    splineF3 = FijLung.SplineF(3, N) # lung location 3: near bronchiole tube
+    if midPtQuad
+        splineF1 = FijLung.splineAtMidPoints(1, N) # near visceral pleura
+        splineF2 = FijLung.splineAtMidPoints(2, N) # deep lung
+        splineF3 = FijLung.splineAtMidPoints(3, N) # near bronchiole tube
+    else
+        splineF1 = FijLung.splineAtEndPoints(1, N) # near visceral pleura
+        splineF2 = FijLung.splineAtEndPoints(2, N) # deep lung
+        splineF3 = FijLung.splineAtEndPoints(3, N) # near bronchiole tube
+    end
 
     t1 = zeros(Float64, N)
     t2 = zeros(Float64, N)
@@ -105,7 +118,6 @@ function figures1D(N::Integer, myDirPath::String)
         t2[n] = get(splineF2.t[n])
         t3[n] = get(splineF3.t[n])
     end
-    midPtQuad = false
 
     # These deformation gradient components associate with the 1 direction.
     println("Deformations are in the direction of the spine.")
@@ -185,7 +197,7 @@ function figures1D(N::Integer, myDirPath::String)
         ϵ3[n] = get(k3.ϵ[n])
         ϵ′3[n] = get(k3.ϵ′[n])
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    fig = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax = Axis(fig[1, 1];
         xlabel = "time (s)",
         ylabel = "strain ϵ",
@@ -210,7 +222,8 @@ function figures1D(N::Integer, myDirPath::String)
     axislegend("Locations",
         position = :rt)
     save(string(myDirPath, "1Dstrain.png"), fig)
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+
+    fig = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax = Axis(fig[1, 1];
         xlabel = "time (s)",
         ylabel = "strain rate dϵ/dt (s⁻¹)",
