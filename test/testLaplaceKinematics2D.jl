@@ -14,9 +14,15 @@ export
 =#
 
 function persistence(myDirPath::String)
+    midPtQuad = false
+
     arrayOfTimes = FijLung.t_loc1()
     N = arrayOfTimes.array.len
-    splineF = FijLung.SplineF(1, N)
+    if midPtQuad
+        splineF = FijLung.splineAtMidPoints(1, N)
+    else
+        splineF = FijLung.splineAtEndPoints(1, N)
+    end
 
     # Consider the reference and initial states to be the same, i.e., κᵣ = κ₁.
     aᵣ = PhysicalScalar(1.0, CGS_STRETCH)
@@ -25,8 +31,7 @@ function persistence(myDirPath::String)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     N = 3 # Considered so the JSON file would not be to big.
-    midPtQuad = false
-    dt = splineF.t[2] - splineF.t[1]
+    dt = splineF.t[4] - splineF.t[3]
     F = splineF.F[1]
     F₀ = PhysicalTensor(2, 2, CGS_DIMENSIONLESS)
     F₀[1,1] = F[1,1]
@@ -151,13 +156,20 @@ where\n
 This function tests the exported functions of `LaplaceKinematics` for the 2D case; specifically, for the 23 plane for Fᵢⱼ exported by FijLung.
 """
 function figures2D(N::Integer, myDirPath::String)
+    midPtQuad = false
+
     CairoMakie.activate!(type = "png")
     println("For these figures, N = ", string(N), ".")
-
-    println("Creating B Splines for the deformation gradient data.")
-    splineF1 = FijLung.SplineF(1, N) # lung location 1: near visceral pleura
-    splineF2 = FijLung.SplineF(2, N) # lung location 2: deep lung
-    splineF3 = FijLung.SplineF(3, N) # lung location 3: near bronchiole tube
+    println("Creating B-splines of the deformation gradient data.")
+    if midPtQuad
+        splineF1 = FijLung.splineAtMidPoints(1, N) # near visceral pleura
+        splineF2 = FijLung.splineAtMidPoints(2, N) # deep lung
+        splineF3 = FijLung.splineAtMidPoints(3, N) # near bronchiole tube
+    else
+        splineF1 = FijLung.splineAtEndPoints(1, N) # near visceral pleura
+        splineF2 = FijLung.splineAtEndPoints(2, N) # deep lung
+        splineF3 = FijLung.splineAtEndPoints(3, N) # near bronchiole tube
+    end
 
     t1 = zeros(Float64, N)
     t2 = zeros(Float64, N)
@@ -167,7 +179,6 @@ function figures2D(N::Integer, myDirPath::String)
         t2[n] = get(splineF2.t[n])
         t3[n] = get(splineF3.t[n])
     end
-    midPtQuad = false
 
     # These deformation gradient components associate with the 23 plane.
     println("Deformations are for the spine/breast-bone plane.")
@@ -269,7 +280,7 @@ function figures2D(N::Integer, myDirPath::String)
     end
 
     println("Building the Laplace kinematics data structures.")
-    # Consider the reference and initial states to be the same, i.e., κᵣ = κ₁.
+    # Consider reference and initial states to be the same, i.e., κᵣ = κ₁.
     aᵣ = PhysicalScalar(1.0, CGS_STRETCH)
     bᵣ = PhysicalScalar(1.0, CGS_STRETCH)
     γᵣ = PhysicalScalar(CGS_DIMENSIONLESS)
@@ -368,57 +379,58 @@ function figures2D(N::Integer, myDirPath::String)
         a3[n]  = get(k3.aₙ[n])
         a′3[n] = get(k3.a′ₙ[n])
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    fig1 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax1 = Axis(fig1[1, 1];
         xlabel = "time (s)",
         ylabel = "elongation a",
         title = "Elongation a and its rate da/dt.",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, a1;
+    lines!(ax1, t1, a1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, a2;
+    lines!(ax1, t2, a2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, a3;
+    lines!(ax1, t3, a3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Da.png"), fig)
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    save(string(myDirPath, "2Da.png"), fig1)
+
+    fig2 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax2 = Axis(fig2[1, 1];
         xlabel = "time (s)",
         ylabel = "elongation rate da/dt (s⁻¹)",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, a′1;
+    lines!(ax2, t1, a′1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, a′2;
+    lines!(ax2, t2, a′2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, a′3;
+    lines!(ax2, t3, a′3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Dda.png"), fig)
+    save(string(myDirPath, "2Dda.png"), fig2)
 
     println("Working on figures for b and db/dt.")
     b1  = zeros(Float64, N)
@@ -435,57 +447,58 @@ function figures2D(N::Integer, myDirPath::String)
         b3[n]  = get(k3.bₙ[n])
         b′3[n] = get(k3.b′ₙ[n])
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    fig3 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax3 = Axis(fig3[1, 1];
         xlabel = "time (s)",
         ylabel = "elongation b",
         title = "Elongation b and its rate db/dt",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, b1;
+    lines!(ax3, t1, b1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, b2;
+    lines!(ax3, t2, b2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, b3;
+    lines!(ax3, t3, b3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Db.png"), fig)
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    save(string(myDirPath, "2Db.png"), fig3)
+
+    fig4 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax4 = Axis(fig4[1, 1];
         xlabel = "time (s)",
         ylabel = "elongation rate db/dt (s⁻¹)",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, b′1;
+    lines!(ax4, t1, b′1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, b′2;
+    lines!(ax4, t2, b′2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, b′3;
+    lines!(ax4, t3, b′3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Ddb.png"), fig)
+    save(string(myDirPath, "2Ddb.png"), fig4)
 
     println("Working on figures for γ and dγ/dt.")
     γ1  = zeros(Float64, N)
@@ -502,57 +515,58 @@ function figures2D(N::Integer, myDirPath::String)
         γ3[n]  = get(k3.γₙ[n])
         γ′3[n] = get(k3.γ′ₙ[n])
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    fig5 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax5 = Axis(fig5[1, 1];
         xlabel = "time (s)",
         ylabel = "shear γ",
         title = "In-plane shear γ and its rate dγ/dt.",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, γ1;
+    lines!(ax5, t1, γ1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, γ2;
+    lines!(ax5, t2, γ2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, γ3;
+    lines!(ax5, t3, γ3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Dgamma.png"), fig)
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    save(string(myDirPath, "2Dgamma.png"), fig5)
+
+    fig6 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax6 = Axis(fig6[1, 1];
         xlabel = "time (s)",
         ylabel = "shear rate dγ/dt (s⁻¹)",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, γ′1;
+    lines!(ax6, t1, γ′1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, γ′2;
+    lines!(ax6, t2, γ′2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, γ′3;
+    lines!(ax6, t3, γ′3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rc)
-    save(string(myDirPath, "2Ddgamma.png"), fig)
+    save(string(myDirPath, "2Ddgamma.png"), fig6)
 
     println("Working on figures for δ and dδ/dt.")
     δ1  = zeros(Float64, N)
@@ -569,57 +583,58 @@ function figures2D(N::Integer, myDirPath::String)
         δ3[n]  = get(k3.δ[n])
         δ′3[n] = get(k3.δ′[n])
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    fig7 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax7 = Axis(fig7[1, 1];
         xlabel = "time (s)",
         ylabel = "dilation δ",
         title = "Dilation δ and its rate dδ/dt.",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, δ1;
+    lines!(ax7, t1, δ1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, δ2;
+    lines!(ax7, t2, δ2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, δ3;
+    lines!(ax7, t3, δ3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Ddelta.png"), fig)
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    save(string(myDirPath, "2Ddelta.png"), fig7)
+
+    fig8 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax8 = Axis(fig8[1, 1];
         xlabel = "time (s)",
         ylabel = "dilation rate dδ/dt (s⁻¹)",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, δ′1;
+    lines!(ax8, t1, δ′1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, δ′2;
+    lines!(ax8, t2, δ′2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, δ′3;
+    lines!(ax8, t3, δ′3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2DdDelta.png"), fig)
+    save(string(myDirPath, "2DdDelta.png"), fig8)
 
     println("Working on figures for ϵ and dϵ/dt.")
     ϵ1  = zeros(Float64, N)
@@ -636,57 +651,59 @@ function figures2D(N::Integer, myDirPath::String)
         ϵ3[n]  = get(k3.ϵ[n])
         ϵ′3[n] = get(k3.ϵ′[n])
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+
+    fig9 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax9 = Axis(fig9[1, 1];
         xlabel = "time (s)",
         ylabel = "squeeze ϵ",
         title = "Squeeze ϵ and its rate dϵ/dt.",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, ϵ1;
+    lines!(ax9, t1, ϵ1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, ϵ2;
+    lines!(ax9, t2, ϵ2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, ϵ3;
+    lines!(ax9, t3, ϵ3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Depsilon.png"), fig)
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    save(string(myDirPath, "2Depsilon.png"), fig9)
+
+    fig10 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax10 = Axis(fig10[1, 1];
         xlabel = "time (s)",
         ylabel = "squeeze rate dϵ/dt (s⁻¹)",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, ϵ′1;
+    lines!(ax10, t1, ϵ′1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, ϵ′2;
+    lines!(ax10, t2, ϵ′2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, ϵ′3;
+    lines!(ax10, t3, ϵ′3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2DdEpsilon.png"), fig)
+    save(string(myDirPath, "2DdEpsilon.png"), fig10)
 
     println("Working on figures for Laplace γ and dγ/dt.")
     γ1  = zeros(Float64, N)
@@ -703,57 +720,59 @@ function figures2D(N::Integer, myDirPath::String)
         γ3[n]  = get(k3.γ[n])
         γ′3[n] = get(k3.γ′[n])
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+
+    fig11 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax11 = Axis(fig11[1, 1];
         xlabel = "time (s)",
         ylabel = "shear strain γ",
         title = "Shear strain γ and its rate dγ/dt.",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, γ1;
+    lines!(ax11, t1, γ1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, γ2;
+    lines!(ax11, t2, γ2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, γ3;
+    lines!(ax11, t3, γ3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2DLaplaceGamma.png"), fig)
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    save(string(myDirPath, "2DLaplaceGamma.png"), fig11)
+
+    fig12 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax12 = Axis(fig12[1, 1];
         xlabel = "time (s)",
         ylabel = "shear strain rate dγ/dt (s⁻¹)",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, γ′1;
+    lines!(ax12, t1, γ′1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, γ′2;
+    lines!(ax12, t2, γ′2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, γ′3;
+    lines!(ax12, t3, γ′3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rc)
-    save(string(myDirPath, "2DdLaplaceGamma.png"), fig)
+    save(string(myDirPath, "2DdLaplaceGamma.png"), fig12)
 
     println("Working on figures for Gram rotation ω and spin dω/dt.")
     ω1  = zeros(Float64, N)
@@ -770,58 +789,60 @@ function figures2D(N::Integer, myDirPath::String)
         ω3[n]  = (180 / π) * get(k3.ωₙ[n])
         ω′3[n] = (180 / π) * get(k3.ω′ₙ[n])
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+
+    fig13 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax13 = Axis(fig13[1, 1];
         title = "Gram Rotation: ω.",
         xlabel = "time (s)",
         ylabel = "Gram rotation ω (°)",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, ω1;
+    lines!(ax13, t1, ω1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, ω2;
+    lines!(ax13, t2, ω2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, ω3;
+    lines!(ax13, t3, ω3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Domega.png"), fig)
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+    save(string(myDirPath, "2Domega.png"), fig13)
+
+    fig14 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax14 = Axis(fig14[1, 1];
         title = "Gram Spin: dω/dt.",
         xlabel = "time (s)",
         ylabel = "Gram spin dω / dt (°⋅s⁻¹)",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, ω′1;
+    lines!(ax14, t1, ω′1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, ω′2;
+    lines!(ax14, t2, ω′2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, ω′3;
+    lines!(ax14, t3, ω′3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rb)
-    save(string(myDirPath, "2DdOmega.png"), fig)
+    save(string(myDirPath, "2DdOmega.png"), fig14)
 
     println("Working on figure of pivoting for frame indifference.")
     P1 = zeros(UInt8, N)
@@ -832,8 +853,9 @@ function figures2D(N::Integer, myDirPath::String)
         P2[n] = k2.P[n]
         P3[n] = k3.P[n]
     end
-    fig = Figure(resolution = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
+
+    fig15 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    ax15 = Axis(fig15[1, 1];
         xlabel = "time (s)",
         ylabel = "pivot case",
         yticks = [1, 2, 3, 4],
@@ -841,24 +863,25 @@ function figures2D(N::Integer, myDirPath::String)
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, P1;
+    lines!(ax15, t1, P1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, P2;
+    lines!(ax15, t2, P2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, P3;
+    lines!(ax15, t3, P3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rc)
-    save(string(myDirPath, "2Dpivot.png"), fig)
+    save(string(myDirPath, "2Dpivot.png"), fig15)
+
     countP1_1 = 0
     countP1_2 = 0
     countP1_3 = 0
