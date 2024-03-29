@@ -39,7 +39,8 @@ function persistence(midPtQuad::Bool, myDirPath::String)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     dt = splineF.t[N] - splineF.t[N-1]
-    k = LaplaceKinematics.MembraneKinematics(dt, N, midPtQuad, aᵣ, bᵣ, γᵣ)
+    Pᵣ = 1
+    k = LaplaceKinematics.MembraneKinematics(dt, N, midPtQuad, aᵣ, bᵣ, γᵣ, Pᵣ)
 
     # Populate this data structure.
     for n in 1:N

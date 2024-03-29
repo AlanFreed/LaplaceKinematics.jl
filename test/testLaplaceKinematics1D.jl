@@ -160,7 +160,7 @@ function figures1D(N::Integer, midPtQuad::Bool, myDirPath::String)
 
     println("Building the Laplace kinematics data structures.")
     # Consider the reference and initial states to be the same, i.e., κᵣ = κ₀.
-    λᵣ = PhysicalScalar(1.0, CGS_LENGTH)
+    λᵣ = PhysicalScalar(1.0, CGS_STRETCH)
     # Create the variable to hold stretch rates.
     TIME_RATE = PhysicalFields.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
     λ′ₙ = PhysicalScalar(TIME_RATE)
