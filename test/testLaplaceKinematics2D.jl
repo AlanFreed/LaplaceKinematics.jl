@@ -13,43 +13,38 @@ export
 -------------------------------------------------------------------------------
 =#
 
-function persistence(myDirPath::String)
-    midPtQuad = false
+"""
+Function:\n
+    persistence(midPtQuad, myDirPath)\n
+where\n
+    midPtQuad  is true if a mid-point quadrature is to be used.\n
+    myDirPath  is the path where the user wants his file to be written.\n
+This function tests writing and reading a `MembraneKinematics` object to and from a file for its ability to recreate the object from file.
+"""
+function persistence(midPtQuad::Bool, myDirPath::String)
+    N = 3 # Considered so the JSON file would not be too big.
 
     arrayOfTimes = FijLung.t_loc1()
-    N = arrayOfTimes.array.len
+    Nₛ = arrayOfTimes.array.len
     if midPtQuad
-        splineF = FijLung.splineAtMidPoints(1, N)
+        splineF = FijLung.splineAtMidPoints(1, Nₛ)
     else
-        splineF = FijLung.splineAtEndPoints(1, N)
+        splineF = FijLung.splineAtEndPoints(1, Nₛ)
     end
 
-    # Consider the reference and initial states to be the same, i.e., κᵣ = κ₁.
+    # Consider the reference and initial states to be the same, i.e., κᵣ = κ₀.
     aᵣ = PhysicalScalar(1.0, CGS_STRETCH)
     bᵣ = PhysicalScalar(1.0, CGS_STRETCH)
-    γᵣ = PhysicalScalar(CGS_DIMENSIONLESS)
+    γᵣ = PhysicalScalar(CGS_STRETCH)
 
     # Build a data structure for Laplace kinematics at lung location 1.
-    N = 3 # Considered so the JSON file would not be to big.
-    dt = splineF.t[4] - splineF.t[3]
-    F = splineF.F[1]
-    F₀ = PhysicalTensor(2, 2, CGS_DIMENSIONLESS)
-    F₀[1,1] = F[1,1]
-    F₀[1,2] = F[1,2]
-    F₀[2,1] = F[2,1]
-    F₀[2,2] = F[2,2]
-    F′ = splineF.F′[1]
-    F′₀ = PhysicalTensor(2, 2, CGS_STRAIN_RATE)
-    F′₀[1,1] = F′[1,1]
-    F′₀[1,2] = F′[1,2]
-    F′₀[2,1] = F′[2,1]
-    F′₀[2,2] = F′[2,2]
-    k = LaplaceKinematics.MembraneKinematics(dt, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₀)
+    dt = splineF.t[N] - splineF.t[N-1]
+    k = LaplaceKinematics.MembraneKinematics(dt, N, midPtQuad, aᵣ, bᵣ, γᵣ)
 
     # Populate this data structure.
-    for n in 2:N
-        F′ = splineF.F′[n]
-        F′ₙ = PhysicalTensor(2, 2, CGS_STRAIN_RATE)
+    for n in 1:N
+        F′ = splineF.F′[n+1]
+        F′ₙ = PhysicalTensor(2, 2, CGS_STRETCH_RATE)
         F′ₙ[1,1] = F′[1,1]
         F′ₙ[1,2] = F′[1,2]
         F′ₙ[2,1] = F′[2,1]
@@ -84,7 +79,7 @@ function persistence(myDirPath::String)
     if k.γᵣ ≠ k1.γᵣ
         equal = false
     end
-    for i in 1:3
+    for i in 1:N+1
         if k.t[i] ≠ k1.t[i]
             equal = false
         end
@@ -94,7 +89,7 @@ function persistence(myDirPath::String)
         if k.F′[i] ≠ k1.F′[i]
             equal = false
         end
-        if k.P[i] ≠ k1.P[i]
+        if k.motion[i] ≠ k1.motion[i]
             equal = false
         end
         if k.ωₙ[i] ≠ k1.ωₙ[i]
@@ -149,28 +144,33 @@ end # persistence
 
 """
 Function:\n 
-    figures2D(N, myDirPath)\n
+    figures2D(N, midPtQuad, myDirPath)\n
 where\n
-    N is the number of nodes in the B-spline, and\n
-    myDirPath specifies the directory into which the figures are saved.\n 
+    N          is the number of nodes or knots in the B-spline.\n
+    midPtQuad  is true if a mid-point quadrature is to be used.\n
+    myDirPath  is the path where the user wants his file to be written.\n
 This function tests the exported functions of `LaplaceKinematics` for the 2D case; specifically, for the 23 plane for Fᵢⱼ exported by FijLung.
 """
-function figures2D(N::Integer, myDirPath::String)
-    midPtQuad = false
+function figures2D(N::Integer, midPtQuad::Bool, myDirPath::String)
 
     CairoMakie.activate!(type = "png")
-    println("For these figures, N = ", string(N), ".")
-    println("Creating B-splines of the deformation gradient data.")
+    println("For these figures, the number of intervals is N = ", string(N), ".")
+
+    println("Creating B-splines for the deformation gradient data.")
     if midPtQuad
         splineF1 = FijLung.splineAtMidPoints(1, N) # near visceral pleura
-        splineF2 = FijLung.splineAtMidPoints(2, N) # deep lung
+        splineF2 = FijLung.splineAtMidPoints(2, N) # deep in the lung
         splineF3 = FijLung.splineAtMidPoints(3, N) # near bronchiole tube
     else
         splineF1 = FijLung.splineAtEndPoints(1, N) # near visceral pleura
-        splineF2 = FijLung.splineAtEndPoints(2, N) # deep lung
+        splineF2 = FijLung.splineAtEndPoints(2, N) # deep in the lung
         splineF3 = FijLung.splineAtEndPoints(3, N) # near bronchiole tube
     end
 
+    # The last splined node is not included in the plots because it may not be
+    # 'natural', i.e., actual derivatives at the last node may not be accurate.
+
+    # Times at the solution nodal points. Times t[1] hold the initial time.
     t1 = zeros(Float64, N)
     t2 = zeros(Float64, N)
     t3 = zeros(Float64, N)
@@ -283,85 +283,59 @@ function figures2D(N::Integer, myDirPath::String)
     # Consider reference and initial states to be the same, i.e., κᵣ = κ₁.
     aᵣ = PhysicalScalar(1.0, CGS_STRETCH)
     bᵣ = PhysicalScalar(1.0, CGS_STRETCH)
-    γᵣ = PhysicalScalar(CGS_DIMENSIONLESS)
-
-    Fᵢⱼ  = PhysicalScalar(CGS_STRETCH)
+    γᵣ = PhysicalScalar(CGS_STRETCH)
+    # This shearing is in the 1 direction.
+    Pᵣ = 1
+    # Create the variables to hold the rate of deformation gradient.
     F′ᵢⱼ = PhysicalScalar(CGS_STRETCH_RATE)
+    F′ₙ  = PhysicalTensor(2, 2, CGS_STRETCH_RATE)
 
     # Build a data structure for Laplace kinematics at lung location 1.
-    dt1 = PhysicalScalar(t1[2]-t1[1], CGS_SECOND)
-    F₁1 = PhysicalTensor(2, 2, CGS_STRETCH)
-    set!(Fᵢⱼ, F₁₁1[1])
-    F₁1[1,1] = Fᵢⱼ
-    set!(Fᵢⱼ, F₁₂1[1])
-    F₁1[1,2] = Fᵢⱼ
-    set!(Fᵢⱼ, F₂₁1[1])
-    F₁1[2,1] = Fᵢⱼ
-    set!(Fᵢⱼ, F₂₂1[1])
-    F₁1[2,2] = Fᵢⱼ
-    k1 = LaplaceKinematics.MembraneKinematics(dt1, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₁1)
+    dt = PhysicalScalar(t1[N]-t1[N-1], CGS_SECOND)
+    k1 = LaplaceKinematics.MembraneKinematics(dt, N, midPtQuad, aᵣ, bᵣ, γᵣ, Pᵣ)
     # Populate this data structure.
-    F′ₙ1 = PhysicalTensor(2, 2, CGS_STRETCH_RATE)
     for n in 2:N
         set!(F′ᵢⱼ, F′₁₁1[n])
-        F′ₙ1[1,1] = F′ᵢⱼ
+        F′ₙ[1,1] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₁₂1[n])
-        F′ₙ1[1,2] = F′ᵢⱼ
+        F′ₙ[1,2] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₂₁1[n])
-        F′ₙ1[2,1] = F′ᵢⱼ
+        F′ₙ[2,1] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₂₂1[n])
-        F′ₙ1[2,2] = F′ᵢⱼ
-        LaplaceKinematics.advance!(k1, F′ₙ1)
+        F′ₙ[2,2] = F′ᵢⱼ
+        LaplaceKinematics.advance!(k1, F′ₙ)
     end
 
     # Build a data structure for Laplace kinematics at lung location 2.
-    dt2 = PhysicalScalar(t2[2]-t2[1], CGS_SECOND)
-    F₁2 = PhysicalTensor(2, 2, CGS_STRETCH)
-    set!(Fᵢⱼ, F₁₁2[1])
-    F₁2[1,1] = Fᵢⱼ
-    set!(Fᵢⱼ, F₁₂2[1])
-    F₁2[1,2] = Fᵢⱼ
-    set!(Fᵢⱼ, F₂₁2[1])
-    F₁2[2,1] = Fᵢⱼ
-    set!(Fᵢⱼ, F₂₂2[1])
-    F₁2[2,2] = Fᵢⱼ
-    k2 = LaplaceKinematics.MembraneKinematics(dt2, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₁2)
-    F′ₙ2 = PhysicalTensor(2, 2, CGS_STRETCH_RATE)
+    set!(dt, t2[N]-t2[N-1])
+    k2 = LaplaceKinematics.MembraneKinematics(dt, N, midPtQuad, aᵣ, bᵣ, γᵣ, Pᵣ)
+    # Populate this data structure.
     for n in 2:N
         set!(F′ᵢⱼ, F′₁₁2[n])
-        F′ₙ2[1,1] = F′ᵢⱼ
+        F′ₙ[1,1] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₁₂2[n])
-        F′ₙ2[1,2] = F′ᵢⱼ
+        F′ₙ[1,2] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₂₁2[n])
-        F′ₙ2[2,1] = F′ᵢⱼ
+        F′ₙ[2,1] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₂₂2[n])
-        F′ₙ2[2,2] = F′ᵢⱼ
-        LaplaceKinematics.advance!(k2, F′ₙ2)
+        F′ₙ[2,2] = F′ᵢⱼ
+        LaplaceKinematics.advance!(k2, F′ₙ)
     end
 
     # Build a data structure for Laplace kinematics at lung location 3.
-    dt3 = PhysicalScalar(t3[2]-t3[1], CGS_SECOND)
-    F₁3 = PhysicalTensor(2, 2, CGS_STRETCH)
-    set!(Fᵢⱼ, F₁₁3[1])
-    F₁3[1,1] = Fᵢⱼ
-    set!(Fᵢⱼ, F₁₂3[1])
-    F₁3[1,2] = Fᵢⱼ
-    set!(Fᵢⱼ, F₂₁3[1])
-    F₁3[2,1] = Fᵢⱼ
-    set!(Fᵢⱼ, F₂₂3[1])
-    F₁3[2,2] = Fᵢⱼ
-    k3 = LaplaceKinematics.MembraneKinematics(dt3, N, midPtQuad, aᵣ, bᵣ, γᵣ, F₁3)
-    F′ₙ3 = PhysicalTensor(2, 2, CGS_STRETCH_RATE)
+    set!(dt, t3[N]-t3[N-1])
+    k3 = LaplaceKinematics.MembraneKinematics(dt, N, midPtQuad, aᵣ, bᵣ, γᵣ, Pᵣ)
+    # Populate this data structure.
     for n in 2:N
         set!(F′ᵢⱼ, F′₁₁3[n])
-        F′ₙ3[1,1] = F′ᵢⱼ
+        F′ₙ[1,1] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₁₂3[n])
-        F′ₙ3[1,2] = F′ᵢⱼ
+        F′ₙ[1,2] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₂₁3[n])
-        F′ₙ3[2,1] = F′ᵢⱼ
+        F′ₙ[2,1] = F′ᵢⱼ
         set!(F′ᵢⱼ, F′₂₂3[n])
-        F′ₙ3[2,2] = F′ᵢⱼ
-        LaplaceKinematics.advance!(k3, F′ₙ3)
+        F′ₙ[2,2] = F′ᵢⱼ
+        LaplaceKinematics.advance!(k3, F′ₙ)
     end
 
     println("Working on figures for a and a′ = da/dt.")
@@ -404,7 +378,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Da.png"), fig1)
+    if midPtQuad
+        save(string(myDirPath, "2DaAtMidPoints.png"), fig1)
+    else
+        save(string(myDirPath, "2DaAtEndPoints.png"), fig1)
+    end
 
     fig2 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax2 = Axis(fig2[1, 1];
@@ -430,7 +408,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Dda.png"), fig2)
+    if midPtQuad
+        save(string(myDirPath, "2DdaAtMidPoints.png"), fig2)
+    else
+        save(string(myDirPath, "2DdaAtEndPoints.png"), fig2)
+    end
 
     println("Working on figures for b and db/dt.")
     b1  = zeros(Float64, N)
@@ -472,7 +454,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Db.png"), fig3)
+    if midPtQuad
+        save(string(myDirPath, "2DbAtMidPoints.png"), fig3)
+    else
+        save(string(myDirPath, "2DbAtEndPoints.png"), fig3)
+    end
 
     fig4 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax4 = Axis(fig4[1, 1];
@@ -498,7 +484,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Ddb.png"), fig4)
+    if midPtQuad
+        save(string(myDirPath, "2DdbAtMidPoints.png"), fig4)
+    else
+        save(string(myDirPath, "2DdbAtEndPoints.png"), fig4)
+    end
 
     println("Working on figures for γ and dγ/dt.")
     γ1  = zeros(Float64, N)
@@ -540,7 +530,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Dgamma.png"), fig5)
+    if midPtQuad
+        save(string(myDirPath, "2DgammaAtMidPoints.png"), fig5)
+    else
+        save(string(myDirPath, "2DgammaAtEndPoints.png"), fig5)
+    end
 
     fig6 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax6 = Axis(fig6[1, 1];
@@ -566,7 +560,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rc)
-    save(string(myDirPath, "2Ddgamma.png"), fig6)
+    if midPtQuad
+        save(string(myDirPath, "2DdgammaAtMidPoints.png"), fig6)
+    else
+        save(string(myDirPath, "2DdgammaAtEndPoints.png"), fig6)
+    end
 
     println("Working on figures for δ and dδ/dt.")
     δ1  = zeros(Float64, N)
@@ -608,7 +606,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Ddelta.png"), fig7)
+    if midPtQuad
+        save(string(myDirPath, "2DdeltaAtMidPoints.png"), fig7)
+    else
+        save(string(myDirPath, "2DdeltaAtEndPoints.png"), fig7)
+    end
 
     fig8 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax8 = Axis(fig8[1, 1];
@@ -634,7 +636,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2DdDelta.png"), fig8)
+    if midPtQuad
+        save(string(myDirPath, "2DdDeltaAtMidPoints.png"), fig8)
+    else
+        save(string(myDirPath, "2DdDeltaAtEndPoints.png"), fig8)
+    end
 
     println("Working on figures for ϵ and dϵ/dt.")
     ϵ1  = zeros(Float64, N)
@@ -677,7 +683,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Depsilon.png"), fig9)
+    if midPtQuad
+        save(string(myDirPath, "2DepsilonAtMidPoints.png"), fig9)
+    else
+        save(string(myDirPath, "2DepsilonAtEndPoints.png"), fig9)
+    end
 
     fig10 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax10 = Axis(fig10[1, 1];
@@ -703,7 +713,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2DdEpsilon.png"), fig10)
+    if midPtQuad
+        save(string(myDirPath, "2DdEpsilonAtMidPoints.png"), fig10)
+    else
+        save(string(myDirPath, "2DdEpsilonAtEndPoints.png"), fig10)
+    end
 
     println("Working on figures for Laplace γ and dγ/dt.")
     γ1  = zeros(Float64, N)
@@ -746,7 +760,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2DLaplaceGamma.png"), fig11)
+    if midPtQuad
+        save(string(myDirPath, "2DLaplaceGammaAtMidPoints.png"), fig11)
+    else
+        save(string(myDirPath, "2DLaplaceGammaAtEndPoints.png"), fig11)
+    end
 
     fig12 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax12 = Axis(fig12[1, 1];
@@ -772,7 +790,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rc)
-    save(string(myDirPath, "2DdLaplaceGamma.png"), fig12)
+    if midPtQuad
+        save(string(myDirPath, "2DdLaplaceGammaAtMidPoints.png"), fig12)
+    else
+        save(string(myDirPath, "2DdLaplaceGammaAtEndPoints.png"), fig12)
+    end
 
     println("Working on figures for Gram rotation ω and spin dω/dt.")
     ω1  = zeros(Float64, N)
@@ -815,7 +837,11 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    save(string(myDirPath, "2Domega.png"), fig13)
+    if midPtQuad
+        save(string(myDirPath, "2DomegaAtMidPoints.png"), fig13)
+    else
+        save(string(myDirPath, "2DomegaAtEndPoints.png"), fig13)
+    end
 
     fig14 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax14 = Axis(fig14[1, 1];
@@ -842,93 +868,106 @@ function figures2D(N::Integer, myDirPath::String)
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rb)
-    save(string(myDirPath, "2DdOmega.png"), fig14)
+    if midPtQuad
+        save(string(myDirPath, "2DdOmegaAtMidPoints.png"), fig14)
+    else
+        save(string(myDirPath, "2DdOmegaAtEndPoints.png"), fig14)
+    end
 
-    println("Working on figure of pivoting for frame indifference.")
-    P1 = zeros(UInt8, N)
-    P2 = zeros(UInt8, N)
-    P3 = zeros(UInt8, N)
+    println("Working on figure of pivoted motions for frame indifference.")
+    motion1 = zeros(UInt8, N)
+    motion2 = zeros(UInt8, N)
+    motion3 = zeros(UInt8, N)
     for n in 1:N
-        P1[n] = k1.P[n]
-        P2[n] = k2.P[n]
-        P3[n] = k3.P[n]
+        motion1[n] = k1.motion[n]
+        motion2[n] = k2.motion[n]
+        motion3[n] = k3.motion[n]
     end
 
     fig15 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax15 = Axis(fig15[1, 1];
         xlabel = "time (s)",
-        ylabel = "pivot case",
+        ylabel = "motion case",
         yticks = [1, 2, 3, 4],
-        title = "Pivot Case for Frame Indifference",
+        title = "Motion Case for Frame Indifference",
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax15, t1, P1;
+    lines!(ax15, t1, motion1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax15, t2, P2;
+    lines!(ax15, t2, motion2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax15, t3, P3;
+    lines!(ax15, t3, motion3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rc)
-    save(string(myDirPath, "2Dpivot.png"), fig15)
+    if midPtQuad
+        save(string(myDirPath, "2DmotionAtMidPoints.png"), fig15)
+    else
+        save(string(myDirPath, "2DmotionAtEndPoints.png"), fig15)
+    end
 
-    countP1_1 = 0
-    countP1_2 = 0
-    countP1_3 = 0
-    countP1_4 = 0
-    countP2_1 = 0
-    countP2_2 = 0
-    countP2_3 = 0
-    countP2_4 = 0
-    countP3_1 = 0
-    countP3_2 = 0
-    countP3_3 = 0
-    countP3_4 = 0
+    countMotion1_1 = 0
+    countMotion1_2 = 0
+    countMotion1_3 = 0
+    countMotion1_4 = 0
+    countMotion2_1 = 0
+    countMotion2_2 = 0
+    countMotion2_3 = 0
+    countMotion2_4 = 0
+    countMotion3_1 = 0
+    countMotion3_2 = 0
+    countMotion3_3 = 0
+    countMotion3_4 = 0
     for n in 1:N
-        if P1[n] == 1
-            countP1_1 += 1
-        elseif P1[n] == 2
-            countP1_2 += 1
-        elseif P1[n] == 3
-            countP1_3 += 1
+        if motion1[n] == 1
+            countMotion1_1 += 1
+        elseif motion1[n] == 2
+            countMotion1_2 += 1
+        elseif motion1[n] == 3
+            countMotion1_3 += 1
         else
-            countP1_4 += 1
+            countMotion1_4 += 1
         end
-        if P2[n] == 1
-            countP2_1 += 1
-        elseif P2[n] == 2
-            countP2_2 += 1
-        elseif P2[n] == 3
-            countP2_3 += 1
+        if motion2[n] == 1
+            countMotion2_1 += 1
+        elseif motion2[n] == 2
+            countMotion2_2 += 1
+        elseif motion2[n] == 3
+            countMotion2_3 += 1
         else
-            countP2_4 += 1
+            countMotion2_4 += 1
         end
-        if P3[n] == 1
-            countP3_1 += 1
-        elseif P3[n] == 2
-            countP3_2 += 1
-        elseif P3[n] == 3
-            countP3_3 += 1
+        if motion3[n] == 1
+            countMotion3_1 += 1
+        elseif motion3[n] == 2
+            countMotion3_2 += 1
+        elseif motion3[n] == 3
+            countMotion3_3 += 1
         else
-            countP3_4 += 1
+            countMotion3_4 += 1
         end
     end
+    if midPtQuad
+        println("Assigning nodes to the mid-points of each solution interval:")
+    else
+        println("Assigning nodes to the end-points of each solution interval:")
+    end
     println("At location 1:")
-    println("   case 1 occurred ", string(countP1_1), ", 2 occurred ", string(countP1_2),", 3 occurred ", string(countP1_3),", and 4 occurred ", string(countP1_4), " times.")
+    println("   motion 1 occurred ", string(countMotion1_1), ", 2 occurred ", string(countMotion1_2),", 3 occurred ", string(countMotion1_3),", and 4 occurred ", string(countMotion1_4), " times.")
     println("At location 2:")
-    println("   case 1 occurred ", string(countP2_1), ", 2 occurred ", string(countP2_2),", 3 occurred ", string(countP2_3),", and 4 occurred ", string(countP2_4), " times.")
+    println("   motion 1 occurred ", string(countMotion2_1), ", 2 occurred ", string(countMotion2_2),", 3 occurred ", string(countMotion2_3),", and 4 occurred ", string(countMotion2_4), " times.")
     println("At location 3:")
-    println("   case 1 occurred ", string(countP3_1), ", 2 occurred ", string(countP3_2),", 3 occurred ", string(countP3_3),", and 4 occurred ", string(countP3_4), " times.")
+    println("   motion 1 occurred ", string(countMotion3_1), ", 2 occurred ", string(countMotion3_2),", 3 occurred ", string(countMotion3_3),", and 4 occurred ", string(countMotion3_4), " times.")
 end # figures2D
 
 end # testLaplaceKinematics2D.jl
