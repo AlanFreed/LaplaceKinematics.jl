@@ -1,7 +1,7 @@
 name = "LaplaceKinematics"
 uuid = "9f71644a-9970-46c9-94ba-70c89ea29c7d"
 authors = ["Alan Freed <alan.d.freed@proton.me>"]
-version = "0.1.5-3"
+version = "0.1.5-4"
 
 [deps]
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
