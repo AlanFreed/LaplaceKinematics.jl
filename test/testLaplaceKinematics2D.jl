@@ -886,11 +886,16 @@ function figures2D(N::Integer, midPtQuad::Bool, myDirPath::String)
     end
 
     fig15 = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    if midPtQuad
+        str = "Motion Case for Frame Indifference at the Mid Points"
+    else
+        str = "Motion Case for Frame Indifference at the End Points"
+    end
     ax15 = Axis(fig15[1, 1];
         xlabel = "time (s)",
         ylabel = "motion case",
         yticks = [1, 2, 3, 4],
-        title = "Motion Case for Frame Indifference",
+        title = str,
         titlesize = 24,
         xlabelsize = 20,
         ylabelsize = 20)
