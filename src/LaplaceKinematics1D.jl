@@ -27,7 +27,7 @@ FiberKinematics is a data structure that contains the physical fields necessary 
 struct FiberKinematics
     # Properties of the arrays.
     dt::PhysicalScalar          # time increment separating neighboring nodes
-    N::Integer                  # number of intervals along a solution path
+    N::Int64                    # number of intervals along a solution path
     n::MInteger                 # a counter that ratchets from 1 to N+1
 
     # Reference (strain free) length of a 1D fiber element.
@@ -51,14 +51,14 @@ struct FiberKinematics
 
 """
     Constructor:\n
-        k = FiberKinematics(dTime, N, midPtQuad, lambdaᵣ)\n
-    Returns a new data structure `k` of type `FiberKinematics` that holds kinematic fields pertinent for the modeling of a 1D fiber. Arguments are: (i) A differential step in time `dTime` that separates neighboring nodes, which themselves are taken to be uniformly spaced over time. (ii) The total number of grid points or nodes `N` where solutions are to be computed. The data arrays are of length N+1 with initial values/conditions being stored at location [1] in these arrays, e.g., t[1] = 0. (iii) A boolean flag `midPtQuad` that, if true, implies the nodal spacing is for a mid-point quadrature rule, and if false, implies the nodal spacing is for an end-point quadrature rule. This determines how the array of independent times is to be populated. (iv) The reference (or strain free) stretch `lambdaᵣ` of a fiber against which strains are to be measured, viz., ϵ(λᵣ) = 0, with the fiber's initial stretch λ₀, associated with some initial configuration κ₀, being assigned a value of 1 with an outcome being that ϵ(λ₀) need not equal 0.
+        k = FiberKinematics(dTime, N, midPtQuad, lambdaRef)\n
+    Returns a new data structure `k` of type `FiberKinematics` that holds kinematic fields pertinent for the modeling of a 1D fiber. Arguments are: (i) A differential step in time `dTime` that separates neighboring nodes, which themselves are taken to be uniformly spaced over time. (ii) The total number of grid points or nodes `N` where solutions are to be computed. The data arrays are of length N+1 with initial values/conditions being stored at location [1] in these arrays, e.g., t[1] = 0. (iii) A boolean flag `midPtQuad` that, if true, implies the nodal spacing is for a mid-point quadrature rule, and if false, implies the nodal spacing is for an end-point quadrature rule. This determines how the array of independent times is to be populated. (iv) The reference (or strain free) stretch `lambdaRef` of a fiber against which strains are to be measured, viz., ϵ(λᵣ) = 0, with the fiber's initial stretch λ₀, associated with some initial configuration κ₀, being assigned a value of 1 with an outcome being that ϵ(λ₀) need not equal 0.
 """
-    function FiberKinematics(dTime::PhysicalScalar, N::Integer, midPtQuad::Bool, lambdaᵣ::PhysicalScalar)
+    function FiberKinematics(dTime::PhysicalScalar, N::Int64, midPtQuad::Bool, lambdaRef::PhysicalScalar)
 
         # Convert all passed variables to CGS units.
         dt = toCGS(dTime)
-        λᵣ = toCGS(lambdaᵣ)
+        λᵣ = toCGS(lambdaRef)
 
         # Physical bounds:
         tₘᵢₙ = PhysicalScalar(eps(Float64), TIME)
@@ -78,11 +78,11 @@ struct FiberKinematics
             throw(ErrorException(msg))
         end
         if λᵣ.units ≠ DIMENSIONLESS
-            msg = "The reference stretch lambdaᵣ must be dimensionless."
+            msg = "The reference stretch lambdaRef must be dimensionless."
             throw(ErrorException(msg))
         end
         if λᵣ < λₘᵢₙ
-            msg = "The reference stretch lambdaᵣ must be positive valued."
+            msg = "The reference stretch lambdaRef must be positive valued."
             throw(ErrorException(msg))
         end
 
@@ -94,7 +94,7 @@ struct FiberKinematics
         if midPtQuad
             # Assign times for a mid-point quadrature rule.
             for n in 1:N
-                t[n+1] = (n-1)*dt + 0.5dt
+                t[n+1] = (n-1)*dt + 0.5*dt
             end
         else
             # Assign times for an end-point quadrature rule.
@@ -125,7 +125,7 @@ struct FiberKinematics
 
     # The internal constructor used by JSON3 and other external constructors.
 
-    function FiberKinematics(dt::PhysicalScalar, N::Integer, n::MInteger, λᵣ::PhysicalScalar, t::ArrayOfPhysicalScalars, λ::ArrayOfPhysicalScalars, λ′::ArrayOfPhysicalScalars,ϵ::ArrayOfPhysicalScalars, ϵ′::ArrayOfPhysicalScalars)
+    function FiberKinematics(dt::PhysicalScalar, N::Int64, n::MInteger, λᵣ::PhysicalScalar, t::ArrayOfPhysicalScalars, λ::ArrayOfPhysicalScalars, λ′::ArrayOfPhysicalScalars,ϵ::ArrayOfPhysicalScalars, ϵ′::ArrayOfPhysicalScalars)
         new(dt, N, n, λᵣ, t, λ, λ′, ϵ, ϵ′)
     end
 end # FiberKinematics
@@ -219,7 +219,7 @@ Method `advance!` moves a solution from previous step `n-1` to current step `n` 
 
 This method updates counter `k.n` and entries to its history arrays at the nᵗʰ array location in the `k` data structure; specifically: stretch `k.λ[n]` and its rate `k.λ′[n]`, plus strain `k.ϵ[n]` and its rate `k.ϵ′[n].` These fields are evaluated at either the end-point, i.e. at time tₙ, or at the mid-point, i.e. at time (tₙ₋₁ + tₙ)/2, according to the argument `midPtQuad` supplied to its constructor.
 """
-function advance!(k::FiberKinematics, lambda′::PhysicalScalar)
+function advance!(k::FiberKinematics, dLambda::PhysicalScalar)
     # Advance the counter.
     if k.n < k.N+1
         set!(k.n, get(k.n)+1)
@@ -230,7 +230,7 @@ function advance!(k::FiberKinematics, lambda′::PhysicalScalar)
     n = get(k.n)
 
     # Convert to CGS units.
-    λ′ = toCGS(lambda′)
+    λ′ = toCGS(dLambda)
 
     # Verify the input.
     if λ′.units ≠ TIME_RATE
@@ -243,12 +243,12 @@ function advance!(k::FiberKinematics, lambda′::PhysicalScalar)
     if k.t[2] ≈ 0.5k.dt
         # Integrated for nodes located at the mid-point of each time step.
         if n == 2
-            k.λ[2] = k.λ[1] + 0.5k.λ′[2]*k.dt
+            k.λ[2] = k.λ[1] + 0.5*k.λ′[2]*k.dt
         elseif n == 3
-            λ₁ = k.λ[1] - 0.5k.λ′[2]*k.dt
+            λ₁ = k.λ[1] - 0.5*k.λ′[2]*k.dt
             k.λ[3] = (4/3)*k.λ[2] - (1/3)*λ₁ + (2/3)*k.λ′[3]*k.dt
         elseif n == 4
-            λ₁ = k.λ[1] - 0.5k.λ′[2]*k.dt
+            λ₁ = k.λ[1] - 0.5*k.λ′[2]*k.dt
             k.λ[4] = ((18/11)*k.λ[3] - (9/11)*k.λ[2] + (2/11)*λ₁
                    + (6/11)*k.λ′[4]*k.dt)
         else
@@ -276,13 +276,13 @@ end # advance!
 
 """
 Method:\n
-    update!(k::FiberKinematics, lambda′::PhysicalScalar)\n
-Method `update!` refines a solution at step `n` by re-integrating its governing differential equation for fiber stretch, thereby allowing for iterative improvements to be made on stretch rate `lambda′` from an external algorithm, e.g., a finite element engine. There is no need to call `update!` unless `λ′` is being iteratively refined at step `n`, e.g., by some external optimization process. Here λ′ = dλ(k.t[n])/dt.
+    update!(k::FiberKinematics, dLambda::PhysicalScalar)\n
+Method `update!` refines a solution at step `n` by re-integrating its governing differential equation for fiber stretch, thereby allowing for iterative improvements to be made on stretch rate `dLambda` from an external algorithm, e.g., a finite element engine. There is no need to call `update!` unless `λ′` is being iteratively refined at step `n`, e.g., by some external optimization process. Here λ′ = dλ(k.t[n])/dt.
 """
-function update!(k::FiberKinematics, lambda′::PhysicalScalar)
+function update!(k::FiberKinematics, dLambda::PhysicalScalar)
     if k.n > 1
         set!(k.n, get(k.n)-1)
-        advance!(k, lambda′)
+        advance!(k, dLambda)
     end
     return nothing
 end # update!

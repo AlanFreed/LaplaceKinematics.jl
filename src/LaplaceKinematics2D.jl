@@ -68,7 +68,7 @@ Type:\n
 struct MembraneKinematics
     # Properties of the arrays.
     dt::PhysicalScalar           # time step separating neighboring entries
-    N::Integer                   # total number of steps or grid points
+    N::Int64                     # total number of steps or grid points
     n::MInteger                  # a counter that ratchets from 1 to N+1
 
     # 2D Laplace stretch attributes for a reference deformation of κ₀ ↦ κᵣ.
@@ -85,7 +85,7 @@ struct MembraneKinematics
     # Unpivoted 2D deformation gradients for a deformation of κ₀ ↦ κₙ in (𝕚, 𝕛).
     F::ArrayOfPhysicalTensors    # deformation gradients at tₙ: Fₙ κ₀ ↦ κₙ
     F′::ArrayOfPhysicalTensors   # deformation gradient rates at tₙ: dFₙ/dtₙ
-    motion::Vector{Integer}      # the motion case that applies at time tₙ:
+    motion::Vector{Int64}        # the motion case that applies at time tₙ:
                                  # 1) with pure shear, no co-ordinate pivoting
                                  # 2) with pure shear and co-ordinate pivoting
                                  # 3) with rigid-body rotation, no pivoting
@@ -121,27 +121,27 @@ struct MembraneKinematics
 
 """
     Constructor:\n
-        k = MembraneKinematics(dTime, N, midPtQuad, aᵣ, bᵣ, γᵣ, Pᵣ)\n
-    Returns a new data structure `k` of type `MembraneKinematics` that holds a variety of kinematic fields. Arguments include: (i) A differential step in time `dTime` that separates neighboring nodes, which themselves are taken to be uniformly spaced over time. (ii) The number of grid points or nodes `N` where solutions are to be computed. The data arrays are of length N+1 with initial values/conditions being stored at location [1] in these arrays, e.g., t[1] = 0. (iii) A boolean flag `midPtQuad` that, if true, implies the nodal spacing is for a mid-point quadrature rule, and if false, implies the nodal spacing is for an end-point quadrature rule. This determines how the array of independent times is to be populated. (iv) The reference Laplace stretch attributes, viz., `aᵣ`, `bᵣ` and `γᵣ`, against which isochoric strains are to be established so that ϵ(aᵣ, bᵣ, γᵣ) = 0, with the membrane's initial deformation gradient F₀, associated with some initial configuration κ₀, being assigned the identity matrix I with an outcome being that ϵ(a₀, b₀, γ₀) need not equal 0. And (v) if γᵣ is to be a shearing in the 𝕚 direction then `Pᵣ` is to equal 1, else if γᵣ is to be a shearing in the 𝕛 direction then `Pᵣ` is to equal 2, where Pᵣ denotes which permutation matrix it to be applied in the reference configuration.
+        k = MembraneKinematics(dTime, N, midPtQuad, aRef, bRef, γRef, PRef)\n
+    Returns a new data structure `k` of type `MembraneKinematics` that holds a variety of kinematic fields. Arguments include: (i) A differential step in time `dTime` that separates neighboring nodes, which themselves are taken to be uniformly spaced over time. (ii) The number of grid points or nodes `N` where solutions are to be computed. The data arrays are of length N+1 with initial values/conditions being stored at location [1] in these arrays, e.g., t[1] = 0. (iii) A boolean flag `midPtQuad` that, if true, implies the nodal spacing is for a mid-point quadrature rule, and if false, implies the nodal spacing is for an end-point quadrature rule. This determines how the array of independent times is to be populated. (iv) The reference Laplace stretch attributes, viz., `aRef`, `bRef` and `γRef`, against which isochoric strains are to be established so that ϵ(aRef, bRef, γRef) = 0, with the membrane's initial deformation gradient F₀, associated with some initial configuration κ₀, being assigned the identity matrix I with an outcome being that ϵ(a₀, b₀, γ₀) need not equal 0. And (v) if γRef is to be a shearing in the 𝕚 direction then `PRef` is to equal 1, else if γᵣ is to be a shearing in the 𝕛 direction then `PRef` is to equal 2, where PRef denotes which permutation matrix it to be applied in the reference configuration.
 """
-    function MembraneKinematics(dTime::PhysicalScalar, N::Integer, midPtQuad::Bool, aᵣ::PhysicalScalar, bᵣ::PhysicalScalar, γᵣ::PhysicalScalar, Pᵣ::Int)
+    function MembraneKinematics(dTime::PhysicalScalar, N::Int64, midPtQuad::Bool, aRef::PhysicalScalar, bRef::PhysicalScalar, γRef::PhysicalScalar, PRef::Int64)
 
         # Verify inputs.
-        if (Pᵣ < 1) || (Pᵣ > 2)
+        if (PRef < 1) || (PRef > 2)
             msg = "The permutation case for the reference configuration can be either 1 or 2."
             throw(ErrorException(msg))
         end
 
         # Convert all passed variables to CGS units.
         dt = toCGS(dTime)
-        if Pᵣ == 1
-            𝑎ᵣ = toCGS(aᵣ)
-            𝑏ᵣ = toCGS(bᵣ)
+        if PRef == 1
+            aᵣ = toCGS(aRef)
+            bᵣ = toCGS(bRef)
         else
-            𝑎ᵣ = toCGS(bᵣ)
-            𝑏ᵣ = toCGS(aᵣ)
+            aᵣ = toCGS(bRef)
+            bᵣ = toCGS(aRef)
         end
-        𝑔ᵣ = toCGS(γᵣ)
+        gᵣ = toCGS(γRef)
 
         # Continue verification.
         if dt.units ≠ TIME
@@ -157,25 +157,25 @@ struct MembraneKinematics
             msg = string("Solution arrays must have a positive length.")
             throw(ErrorException(msg))
         end
-        if !isDimensionless(𝑎ᵣ)
-            msg = "The supplied reference stretch aᵣ is not dimensionless."
+        if !isDimensionless(aᵣ)
+            msg = "The supplied reference stretch aRef is not dimensionless."
             throw(ErrorException(msg))
         end
         λₘᵢₙ = PhysicalScalar(Float64(eps(Float16)), DIMENSIONLESS)
-        if 𝑎ᵣ < λₘᵢₙ
-            msg = "The supplied reference stretch aᵣ must be positive valued."
+        if aᵣ < λₘᵢₙ
+            msg = "The supplied reference stretch aRef must be positive valued."
             throw(ErrorException(msg))
         end
-        if !isDimensionless(𝑏ᵣ)
-            msg = "The supplied reference stretch bᵣ is not dimensionless."
+        if !isDimensionless(bᵣ)
+            msg = "The supplied reference stretch bRef is not dimensionless."
             throw(ErrorException(msg))
         end
-        if 𝑏ᵣ < λₘᵢₙ
-            msg = "The supplied reference stretch bᵣ must be positive valued."
+        if bᵣ < λₘᵢₙ
+            msg = "The supplied reference stretch bRef must be positive valued."
             throw(ErrorException(msg))
         end
-        if !isDimensionless(𝑔ᵣ)
-            msg = "The supplied reference in-plane shear γᵣ is not dimensionless."
+        if !isDimensionless(gᵣ)
+            msg = "The supplied reference in-plane shear γRef is not dimensionless."
             throw(ErrorException(msg))
         end
 
@@ -187,7 +187,7 @@ struct MembraneKinematics
         if midPtQuad
             # Assign times for a mid-point quadrature rule.
             for n in 1:N
-                t[n+1] = (n-1)*dt + 0.5dt
+                t[n+1] = (n-1)*dt + 0.5*dt
             end
         else
             # Assign times for an end-point quadrature rule.
@@ -221,7 +221,7 @@ struct MembraneKinematics
 
         # Data array that holds the various cases of motion.
         motion = zeros(Int64, N+1)
-        motion[1] = Pᵣ
+        motion[1] = PRef
 
         # Data arrays that hold the Gram rotations and their rates: κ₀ ↦ κₙ.
         ωₙ  = ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
@@ -233,37 +233,37 @@ struct MembraneKinematics
         aₙ = ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
         bₙ = ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
         γₙ = ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
-        aₙ[1] = a₀/𝑎ᵣ
-        bₙ[1] = b₀/𝑏ᵣ
-        γₙ[1] = (𝑎ᵣ/𝑏ᵣ)*(γ₀ - 𝑔ᵣ)
+        aₙ[1] = a₀/aᵣ
+        bₙ[1] = b₀/bᵣ
+        γₙ[1] = (aᵣ/bᵣ)*(γ₀ - gᵣ)
         a′ₙ = ArrayOfPhysicalScalars(N+1, TIME_RATE)
         b′ₙ = ArrayOfPhysicalScalars(N+1, TIME_RATE)
         γ′ₙ = ArrayOfPhysicalScalars(N+1, TIME_RATE)
-        a′ₙ[1] = a′₀/𝑎ᵣ
-        b′ₙ[1] = b′₀/𝑏ᵣ
-        γ′ₙ[1] = (𝑎ᵣ/𝑏ᵣ)*γ′₀
+        a′ₙ[1] = a′₀/aᵣ
+        b′ₙ[1] = b′₀/bᵣ
+        γ′ₙ[1] = (aᵣ/bᵣ)*γ′₀
 
         # Data arrays for the thermodynamic strains and their rates: κᵣ ↦ κₙ.
         δ = ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
         ϵ = ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
         γ = ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
-        δ[1] = PhysicalScalar(0.5log((a₀/𝑎ᵣ)*(b₀/𝑏ᵣ)), DIMENSIONLESS)
-        ϵ[1] = PhysicalScalar(0.5log((a₀/𝑎ᵣ)*(𝑏ᵣ/b₀)), DIMENSIONLESS)
-        γ[1] = γ₀ - 𝑔ᵣ
+        δ[1] = PhysicalScalar(0.5*log((a₀/aᵣ)*(b₀/bᵣ)), DIMENSIONLESS)
+        ϵ[1] = PhysicalScalar(0.5*log((a₀/aᵣ)*(bᵣ/b₀)), DIMENSIONLESS)
+        γ[1] = γ₀ - gᵣ
         δ′ = ArrayOfPhysicalScalars(N+1, TIME_RATE)
         ϵ′ = ArrayOfPhysicalScalars(N+1, TIME_RATE)
         γ′ = ArrayOfPhysicalScalars(N+1, TIME_RATE)
-        δ′[1] = 0.5(a′₀/a₀ + b′₀/b₀)
-        ϵ′[1] = 0.5(a′₀/a₀ - b′₀/b₀)
+        δ′[1] = 0.5*(a′₀/a₀ + b′₀/b₀)
+        ϵ′[1] = 0.5*(a′₀/a₀ - b′₀/b₀)
         γ′[1] = γ′₀
 
         # Create and return a new data structure for Laplace kinematics in 2D.
-        new(dt, N, n, 𝑎ᵣ, 𝑏ᵣ, 𝑔ᵣ, t, F, F′, motion, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
+        new(dt, N, n, aᵣ, bᵣ, gᵣ, t, F, F′, motion, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
     end
 
     # Internal constructor used by JSON3.
 
-    function MembraneKinematics(dt::PhysicalScalar, N::Integer, n::MInteger, aᵣ::PhysicalScalar, bᵣ::PhysicalScalar, γᵣ::PhysicalScalar, t::ArrayOfPhysicalScalars, F::ArrayOfPhysicalTensors, F′::ArrayOfPhysicalTensors, motion::Vector{Integer}, ωₙ::ArrayOfPhysicalScalars, ω′ₙ::ArrayOfPhysicalScalars, aₙ::ArrayOfPhysicalScalars, bₙ::ArrayOfPhysicalScalars, γₙ::ArrayOfPhysicalScalars, a′ₙ::ArrayOfPhysicalScalars, b′ₙ::ArrayOfPhysicalScalars, γ′ₙ::ArrayOfPhysicalScalars, δ::ArrayOfPhysicalScalars, ϵ::ArrayOfPhysicalScalars, γ::ArrayOfPhysicalScalars, δ′::ArrayOfPhysicalScalars, ϵ′::ArrayOfPhysicalScalars, γ′::ArrayOfPhysicalScalars)
+    function MembraneKinematics(dt::PhysicalScalar, N::Int64, n::MInteger, aᵣ::PhysicalScalar, bᵣ::PhysicalScalar, γᵣ::PhysicalScalar, t::ArrayOfPhysicalScalars, F::ArrayOfPhysicalTensors, F′::ArrayOfPhysicalTensors, motion::Vector{Int64}, ωₙ::ArrayOfPhysicalScalars, ω′ₙ::ArrayOfPhysicalScalars, aₙ::ArrayOfPhysicalScalars, bₙ::ArrayOfPhysicalScalars, γₙ::ArrayOfPhysicalScalars, a′ₙ::ArrayOfPhysicalScalars, b′ₙ::ArrayOfPhysicalScalars, γ′ₙ::ArrayOfPhysicalScalars, δ::ArrayOfPhysicalScalars, ϵ::ArrayOfPhysicalScalars, γ::ArrayOfPhysicalScalars, δ′::ArrayOfPhysicalScalars, ϵ′::ArrayOfPhysicalScalars, γ′::ArrayOfPhysicalScalars)
 
         new(dt, N, n, aᵣ, bᵣ, γᵣ, t, F, F′, motion, ωₙ, ω′ₙ, aₙ, bₙ, γₙ, a′ₙ, b′ₙ, γ′ₙ, δ, ϵ, γ, δ′, ϵ′, γ′)
     end
@@ -383,12 +383,12 @@ end
 
 """
 Method:\n
-    advance!(k, F′)\n
-Method `advance!` moves a solution from previous step `n-1` to current step `n` along a solution path of N solution nodes by integrating its governing differential equation for the 2D deformation gradient using a backward difference formula (BDF). Supplied is the membrane's time rate-of-change in its deformation gradient `F′` evaluated in the user's co-ordinate system (𝕚, 𝕛). The initial condition of this differential equation is taken to be F₀ = I, i.e., k.F[1] = F₀ = I where I is the identity matrix. For a time-step interval of [tₙ₋₁, tₙ], F′ = dF/dt associates with either time tₙ when using end-point quadrature, or with time (tₙ₋₁ + tₙ)/2 when using mid-point quadrature.\n
+    advance!(k, dF)\n
+Method `advance!` moves a solution from previous step `n-1` to current step `n` along a solution path of N solution nodes by integrating its governing differential equation for the 2D deformation gradient using a backward difference formula (BDF). Supplied is the membrane's time rate-of-change in its deformation gradient `dF` evaluated in the user's co-ordinate system (𝕚, 𝕛). The initial condition of this differential equation is taken to be F₀ = I, i.e., k.F[1] = F₀ = I where I is the identity matrix. For a time-step interval of [tₙ₋₁, tₙ], dF = F′ = dF/dt associates with either time tₙ when using end-point quadrature, or with time (tₙ₋₁ + tₙ)/2 when using mid-point quadrature.\n
 
 This method updates counter `k.n` and entries to its history arrays at the nᵗʰ array location in the `k` data structure; specifically: deformation gradient `k.F[n]` and its rate `k.F′[n]`, motion case `k.motion[n]`, Laplace stretch attributes `k.aₙ[n]`, `k.bₙ[n]`, `k.γₙ[n]` and `k.ωₙ[n]` and their rates `k.a′ₙ[n]`, `k.b′ₙ[n]`, `k.γ′ₙ[n]` and `k.ω′ₙ[n]`, plus Laplace strain attributes `k.δ[n]`, `k.ϵ[n]` and `k.γ[n]` and their rates `k.δ′[n]`, `k.ϵ′[n]` and `k.γ′[n]`, all mapped to the user's co-ordinate system whose base vectors are denoted as (𝕚, 𝕛). These fields are evaluated at either the end-point, i.e. at time tₙ, or at the mid-point, i.e. at time (tₙ₋₁ + tₙ)/2, according to the argument `midPtQuad` supplied to its constructor.
 """
-function advance!(k::MembraneKinematics, F′::PhysicalTensor)
+function advance!(k::MembraneKinematics, dF::PhysicalTensor)
     # Advance the counter.
     if k.n < k.N+1
         set!(k.n, get(k.n)+1)
@@ -399,18 +399,18 @@ function advance!(k::MembraneKinematics, F′::PhysicalTensor)
     n = get(k.n)
 
     # Convert the passed variable to CGS units.
-    𝐹′ = toCGS(F′)
+    F′ = toCGS(dF)
 
     # Verify inputs.
-    if (𝐹′.matrix.rows ≠ 2) || (𝐹′.matrix.cols ≠ 2)
-        msg = "Supplied deformation gradient rate F′ must be a 2x2 matrix."
+    if (F′.matrix.rows ≠ 2) || (F′.matrix.cols ≠ 2)
+        msg = "Supplied deformation gradient rate dF must be a 2x2 matrix."
         throw(DimensionMismatch(msg))
     end
-    if 𝐹′.units ≠ TIME_RATE
-        msg = "Supplied deformation gradient rate F′ must have units of reciprocal time."
+    if F′.units ≠ TIME_RATE
+        msg = "Supplied deformation gradient rate dF must have units of reciprocal time."
         throw(ErrorException(msg))
     end
-    k.F′[n] = 𝐹′
+    k.F′[n] = F′
 
     # Advance the fields, i.e., insert new values into the data arrays.
 
@@ -438,17 +438,17 @@ function advance!(k::MembraneKinematics, F′::PhysicalTensor)
         for i in 1:2
             for j in 1:2
                 if n == 2
-                    Fₙ[i,j] = F₁[i,j] + 0.5𝐹′[i,j]*k.dt
+                    Fₙ[i,j] = F₁[i,j] + 0.5*F′[i,j]*k.dt
                 elseif n == 3
-                    F₁[i,j] = Fₙ₋₂[i,j] - 0.5F′₂[i,j]*k.dt
-                    Fₙ[i,j] = (4/3)*F₂[i,j] - (1/3)*F₁[i,j] + (2/3)*𝐹′[i,j]*k.dt
+                    F₁[i,j] = Fₙ₋₂[i,j] - 0.5*F′₂[i,j]*k.dt
+                    Fₙ[i,j] = (4/3)*F₂[i,j] - (1/3)*F₁[i,j] + (2/3)*F′[i,j]*k.dt
                 elseif n == 4
-                    F₁[i,j] = Fₙ₋₃[i,j] - 0.5F′₂[i,j]*k.dt
+                    F₁[i,j] = Fₙ₋₃[i,j] - 0.5*F′₂[i,j]*k.dt
                     Fₙ[i,j] = ((18/11)*F₃[i,j] - (9/11)*F₂[i,j]
-                            + (2/11)*F₁[i,j] + (6/11)*𝐹′[i,j]*k.dt)
+                            + (2/11)*F₁[i,j] + (6/11)*F′[i,j]*k.dt)
                 else
                     Fₙ[i,j] = ((18/11)*Fₙ₋₁[i,j] - (9/11)*Fₙ₋₂[i,j]
-                            + (2/11)*Fₙ₋₃[i,j] + (6/11)*𝐹′[i,j]*k.dt)
+                            + (2/11)*Fₙ₋₃[i,j] + (6/11)*F′[i,j]*k.dt)
                 end
             end
         end
@@ -466,24 +466,24 @@ function advance!(k::MembraneKinematics, F′::PhysicalTensor)
         for i in 1:2
             for j in 1:2
                 if n == 2
-                    Fₙ[i,j] = F₁[i,j] + 𝐹′[i,j]*k.dt
+                    Fₙ[i,j] = F₁[i,j] + F′[i,j]*k.dt
                 elseif n == 3
-                    Fₙ[i,j] = (4/3)*F₂[i,j] - (1/3)*F₁[i,j] + (2/3)*𝐹′[i,j]*k.dt
+                    Fₙ[i,j] = (4/3)*F₂[i,j] - (1/3)*F₁[i,j] + (2/3)*F′[i,j]*k.dt
                 else
                     Fₙ[i,j] = ((18/11)*Fₙ₋₁[i,j] - (9/11)*Fₙ₋₂[i,j]
-                            + (2/11)*Fₙ₋₃[i,j] + (6/11)*𝐹′[i,j]*k.dt)
+                            + (2/11)*Fₙ₋₃[i,j] + (6/11)*F′[i,j]*k.dt)
                 end
             end
         end
     end
     k.F[n]  = Fₙ
-    k.F′[n] = 𝐹′
+    k.F′[n] = F′
 
-    # Get attributes for deformation F and rate of deformation 𝐹′ gradients.
+    # Get attributes for deformation F and rate of deformation F′ gradients.
     x  = Fₙ[1,1]
     y  = Fₙ[2,2]
-    x′ = 𝐹′[1,1]
-    y′ = 𝐹′[2,2]
+    x′ = F′[1,1]
+    y′ = F′[2,2]
 
     # Establish the Gram and Laplace attributes, and their rates.
     if (Fₙ[2,1] ≈ 0.0) || (sign(Fₙ[1,2]) == sign(Fₙ[2,1]))
@@ -495,19 +495,19 @@ function advance!(k::MembraneKinematics, F′::PhysicalTensor)
             case = 1
             # Pure shear contributions.
             g  = Fₙ[2,1] / Fₙ[1,1]
-            g′ = (Fₙ[1,1]*𝐹′[2,1] - Fₙ[2,1]*𝐹′[1,1]) / (Fₙ[1,1]*Fₙ[1,1])
+            g′ = (Fₙ[1,1]*F′[2,1] - Fₙ[2,1]*F′[1,1]) / (Fₙ[1,1]*Fₙ[1,1])
             # Simple shear contributions.
             G  = (Fₙ[1,1]*Fₙ[1,2] - Fₙ[2,2]*Fₙ[2,1]) / (Fₙ[1,1]*Fₙ[2,2])
-            G′ = (Fₙ[2,2]*𝐹′[1,2] - Fₙ[1,2]*𝐹′[2,2]) / (Fₙ[2,2]*Fₙ[2,2]) - g′
+            G′ = (Fₙ[2,2]*F′[1,2] - Fₙ[1,2]*F′[2,2]) / (Fₙ[2,2]*Fₙ[2,2]) - g′
         else
             # The Gram co-ordinate system is left handed.
             case = 2
             # Pure shear contributions.
             g  = Fₙ[1,2] / Fₙ[2,2]
-            g′ = (Fₙ[2,2]*𝐹′[1,2] - Fₙ[1,2]*𝐹′[2,2]) / (Fₙ[2,2]*Fₙ[2,2])
+            g′ = (Fₙ[2,2]*F′[1,2] - Fₙ[1,2]*F′[2,2]) / (Fₙ[2,2]*Fₙ[2,2])
             # Simple shear contributions.
             G  = -(Fₙ[1,1]*Fₙ[1,2] - Fₙ[2,2]*Fₙ[2,1]) / (Fₙ[1,1]*Fₙ[2,2])
-            G′ = (Fₙ[1,1]*𝐹′[2,1] - Fₙ[2,1]*𝐹′[1,1]) / (Fₙ[1,1]*Fₙ[1,1]) - g′
+            G′ = (Fₙ[1,1]*F′[2,1] - Fₙ[2,1]*F′[1,1]) / (Fₙ[1,1]*Fₙ[1,1]) - g′
         end
         # Laplace stretch attributes in the (𝕚, 𝕛) co-ordinate frame.
         aₙ = x * sqrt(1+g*g)
@@ -529,7 +529,7 @@ function advance!(k::MembraneKinematics, F′::PhysicalTensor)
             case = 3
             # Rigid-body rotation contributions.
             g  = -Fₙ[2,1] / Fₙ[1,1]
-            g′ = -(Fₙ[1,1]*𝐹′[2,1] - Fₙ[2,1]*𝐹′[1,1]) / (Fₙ[1,1]*Fₙ[1,1])
+            g′ = -(Fₙ[1,1]*F′[2,1] - Fₙ[2,1]*F′[1,1]) / (Fₙ[1,1]*Fₙ[1,1])
             # Angle of rigid-body rotation in the (𝕚, 𝕛) co-ordinate frame.
             ωₙ  = PhysicalScalar(-atan(g), DIMENSIONLESS)
             ω′ₙ = -g′/(1+g*g)
@@ -538,15 +538,15 @@ function advance!(k::MembraneKinematics, F′::PhysicalTensor)
             case = 4
             # Rigid-body rotation contributions.
             g  = -Fₙ[1,2] / Fₙ[2,2]
-            g′ = -(Fₙ[2,2]*𝐹′[1,2] - Fₙ[1,2]*𝐹′[2,2]) / (Fₙ[2,2]*Fₙ[2,2])
+            g′ = -(Fₙ[2,2]*F′[1,2] - Fₙ[1,2]*F′[2,2]) / (Fₙ[2,2]*Fₙ[2,2])
             # Angle of rigid-body rotation in the (𝕚, 𝕛) co-ordinate frame.
             ωₙ  = PhysicalScalar(atan(g), DIMENSIONLESS)
             ω′ₙ = g′/(1+g*g)
         end
         # G is a simple shear.
         G  = (Fₙ[1,1]*Fₙ[1,2] + Fₙ[2,2]*Fₙ[2,1]) / (Fₙ[1,1]*Fₙ[2,2])
-        G′ = ((Fₙ[2,2]*𝐹′[1,2] - Fₙ[1,2]*𝐹′[2,2]) / (Fₙ[2,2]*Fₙ[2,2]) +
-            (Fₙ[1,1]*𝐹′[2,1] - Fₙ[2,1]*𝐹′[1,1]) / (Fₙ[1,1]*Fₙ[1,1]))
+        G′ = ((Fₙ[2,2]*F′[1,2] - Fₙ[1,2]*F′[2,2]) / (Fₙ[2,2]*Fₙ[2,2]) +
+            (Fₙ[1,1]*F′[2,1] - Fₙ[2,1]*F′[1,1]) / (Fₙ[1,1]*Fₙ[1,1]))
 
         # Laplace attributes in the (𝕚, 𝕛) co-ordinate frame.
         aₙ = x * sqrt(1+g*g)
@@ -573,11 +573,11 @@ function advance!(k::MembraneKinematics, F′::PhysicalTensor)
     k.ω′ₙ[n] = ω′ₙ
 
     # Advance the thermodynamic Laplace strains and their rates for κᵣ ↦ κₙ.
-    k.δ[n]  = PhysicalScalar(0.5log(k.aₙ[n]*k.bₙ[n]), DIMENSIONLESS)
-    k.ϵ[n]  = PhysicalScalar(0.5log(k.aₙ[n]/k.bₙ[n]), DIMENSIONLESS)
+    k.δ[n]  = PhysicalScalar(0.5*log(k.aₙ[n]*k.bₙ[n]), DIMENSIONLESS)
+    k.ϵ[n]  = PhysicalScalar(0.5*log(k.aₙ[n]/k.bₙ[n]), DIMENSIONLESS)
     k.γ[n]  = γₙ - k.γᵣ
-    k.δ′[n] = 0.5(a′ₙ/aₙ + b′ₙ/bₙ)
-    k.ϵ′[n] = 0.5(a′ₙ/aₙ - b′ₙ/bₙ)
+    k.δ′[n] = 0.5*(a′ₙ/aₙ + b′ₙ/bₙ)
+    k.ϵ′[n] = 0.5*(a′ₙ/aₙ - b′ₙ/bₙ)
     k.γ′[n] = γ′ₙ
 
     return nothing
@@ -585,13 +585,13 @@ end # advance!
 
 """
 Method:\n
-    update!(k, F′)\n
-Method `update!` provides a capability to refine a solution at step `n` by re-integrating the deformation gradient rate `F′`, thereby allowing for iterative improvements to be made on the deformation rate `F′` from an external algorithm, e.g., a finite element engine. There is no need to call `update!` unless `F′` is being iteratively refined at step `n` by some external optimization process.
+    update!(k, dF)\n
+Method `update!` provides a capability to refine a solution at step `n` by re-integrating the deformation gradient rate `dF`, thereby allowing for iterative improvements to be made on the deformation rate `dF` from an external algorithm, e.g., a finite element engine. There is no need to call `update!` unless `dF` is being iteratively refined at step `n` by some external optimization process.
 """
-function update!(k::MembraneKinematics, F′::PhysicalTensor)
+function update!(k::MembraneKinematics, dF::PhysicalTensor)
     if k.n > 1
         set!(k.n, get(k.n)-1)
-        advance!(k, F′)
+        advance!(k, dF)
     end
     return nothing
 end # update!
