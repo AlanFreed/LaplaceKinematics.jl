@@ -240,30 +240,27 @@ function advance!(k::FiberKinematics, dLambda::PhysicalScalar)
     k.λ′[n] = λ′
 
     # Integrate fiber stretch rate using a backward difference formula (BDF).
-    if k.t[2] ≈ 0.5k.dt
+    if k.t[2] ≈ 0.5*k.dt
         # Integrated for nodes located at the mid-point of each time step.
         if n == 2
             k.λ[2] = k.λ[1] + 0.5*k.λ′[2]*k.dt
         elseif n == 3
             λ₁ = k.λ[1] - 0.5*k.λ′[2]*k.dt
-            k.λ[3] = (4/3)*k.λ[2] - (1/3)*λ₁ + (2/3)*k.λ′[3]*k.dt
+            k.λ[3] = (4k.λ[2] - λ₁ + 2k.λ′[3]*k.dt) / 3
         elseif n == 4
             λ₁ = k.λ[1] - 0.5*k.λ′[2]*k.dt
-            k.λ[4] = ((18/11)*k.λ[3] - (9/11)*k.λ[2] + (2/11)*λ₁
-                   + (6/11)*k.λ′[4]*k.dt)
+            k.λ[4] = (18k.λ[3] - 9k.λ[2] + 2λ₁ + 6k.λ′[4]*k.dt) / 11
         else
-            k.λ[n] = ((18/11)*k.λ[n-1] - (9/11)*k.λ[n-2] + (2/11)*k.λ[n-3]
-                   + (6/11)*k.λ′[n]*k.dt)
+            k.λ[n] = (18k.λ[n-1] - 9k.λ[n-2] + 2k.λ[n-3] + 6k.λ′[n]*k.dt) / 11
         end
     else
         # Integrated for nodes located at the end-point of each time step.
         if n == 2
-            k.λ[2] = k.λ[1] + k.λ′[2]*k.dt
+            k.λ[2] = k.λ[1] + 0.5k.λ′[2]*k.dt
         elseif n == 3
-            k.λ[3] = (4/3)*k.λ[2] - (1/3)*k.λ[1] + (2/3)*k.λ′[3]*k.dt
+            k.λ[3] = (4k.λ[2] - k.λ[1] + 2k.λ′[3]*k.dt) / 3
         else
-            k.λ[n] = ((18/11)*k.λ[n-1] - (9/11)*k.λ[n-2] + (2/11)*k.λ[n-3]
-                   + (6/11)*k.λ′[n]*k.dt)
+            k.λ[n] = (18k.λ[n-1] - 9k.λ[n-2] + 2k.λ[n-3] + 6k.λ′[n]*k.dt) / 11
         end
     end
 

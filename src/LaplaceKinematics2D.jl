@@ -441,14 +441,14 @@ function advance!(k::MembraneKinematics, dF::PhysicalTensor)
                     Fₙ[i,j] = F₁[i,j] + 0.5*F′[i,j]*k.dt
                 elseif n == 3
                     F₁[i,j] = Fₙ₋₂[i,j] - 0.5*F′₂[i,j]*k.dt
-                    Fₙ[i,j] = (4/3)*F₂[i,j] - (1/3)*F₁[i,j] + (2/3)*F′[i,j]*k.dt
+                    Fₙ[i,j] = (4F₂[i,j] - F₁[i,j] + 2F′[i,j]*k.dt) / 3
                 elseif n == 4
                     F₁[i,j] = Fₙ₋₃[i,j] - 0.5*F′₂[i,j]*k.dt
-                    Fₙ[i,j] = ((18/11)*F₃[i,j] - (9/11)*F₂[i,j]
-                            + (2/11)*F₁[i,j] + (6/11)*F′[i,j]*k.dt)
+                    Fₙ[i,j] = ((18F₃[i,j] - 9F₂[i,j] + 2F₁[i,j]
+                        + 6F′[i,j]*k.dt) / 11)
                 else
-                    Fₙ[i,j] = ((18/11)*Fₙ₋₁[i,j] - (9/11)*Fₙ₋₂[i,j]
-                            + (2/11)*Fₙ₋₃[i,j] + (6/11)*F′[i,j]*k.dt)
+                    Fₙ[i,j] = ((18Fₙ₋₁[i,j] - 9Fₙ₋₂[i,j] + 2Fₙ₋₃[i,j]
+                        + 6F′[i,j]*k.dt) / 11)
                 end
             end
         end
@@ -466,12 +466,12 @@ function advance!(k::MembraneKinematics, dF::PhysicalTensor)
         for i in 1:2
             for j in 1:2
                 if n == 2
-                    Fₙ[i,j] = F₁[i,j] + F′[i,j]*k.dt
+                    Fₙ[i,j] = F₁[i,j] + 0.5F′[i,j]*k.dt
                 elseif n == 3
-                    Fₙ[i,j] = (4/3)*F₂[i,j] - (1/3)*F₁[i,j] + (2/3)*F′[i,j]*k.dt
+                    Fₙ[i,j] = (4F₂[i,j] - F₁[i,j] + 2F′[i,j]*k.dt) / 3
                 else
-                    Fₙ[i,j] = ((18/11)*Fₙ₋₁[i,j] - (9/11)*Fₙ₋₂[i,j]
-                            + (2/11)*Fₙ₋₃[i,j] + (6/11)*F′[i,j]*k.dt)
+                    Fₙ[i,j] = ((18Fₙ₋₁[i,j] - 9Fₙ₋₂[i,j] + 2Fₙ₋₃[i,j]
+                        + 6F′[i,j]*k.dt) / 11)
                 end
             end
         end
