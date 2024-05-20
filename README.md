@@ -258,10 +258,22 @@ Not implemented yet
 
 ## Version History
 
-0.1.5: The initial configuration is chosen to have a displacement gradient that is the identity tensor. Kinematic analyses are now considered to be at a mass or continuum point. Structural information is no longer contained within these data structures. For example, what were lengths are now dimensionless stretches.
+### Version 0.1.7
 
-0.1.4: Allow for distinction between mid-point and end-point quadrature rules. This is handled through their constructors.
+Bug fix in the BDF solvers.
 
-0.1.3: Removed geometric fields that were in addition to the fundamental kinematic fields. This was done to simplify data structures built upon those exported here for Laplace kinematics.
+### Version 0.1.5
 
-0.1.2: Initial public release.
+The initial configuration is chosen to have a displacement gradient that is the identity tensor. Kinematic analyses are now considered to be at a mass or continuum point. Structural information is no longer contained within these data structures. For example, what were lengths are now dimensionless stretches.
+
+### Version 0.1.4
+
+Allow for distinction between mid-point and end-point quadrature rules. This is handled through their constructors.
+
+### Version 0.1.3
+
+Removed geometric fields that were in addition to the fundamental kinematic fields. This was done to simplify data structures built upon those exported here for Laplace kinematics.
+
+### Version 0.1.2
+
+Initial public release.
