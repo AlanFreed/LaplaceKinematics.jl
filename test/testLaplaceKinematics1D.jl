@@ -5,56 +5,61 @@ using
     FijLung,
     LaplaceKinematics,
     PhysicalFields
+    
+import
+    LaplaceKinematics as LK,
+    PhysicalFields    as PF
 
 export
-    persistence,
-    figures1D
+    figures1D,
+    persistence
 #=
 --------------------------------------------------------------------------------
 =#
 
 """
-Function:\n
-    persistence(midPtQuad, myDirPath)\n
-where\n
-    midPtQuad  is true if a mid-point quadrature is to be used.\n
-    myDirPath  is the path where the user wants his file to be written.\n
-This function tests writing and reading a `FiberKinematics` object to and from a file for its ability to recreate the object from file.
+```julia
+persistence()
+```
+This function tests writing and reading a *FiberKinematics* object to and from a file for its ability to recreate the object from file.
 """
-function persistence(midPtQuad::Bool, myDirPath::String)
+function persistence()
+    my_dir_path = string(pwd(), "/test/files/")
+    if !isdir(my_dir_path)
+        mkdir(my_dir_path)
+    end
+    
     N = 3 # Considered so the JSON file would not be too big.
 
-    arrayOfTimes = FijLung.t_loc1()
-    Nₛ = arrayOfTimes.array.len
-    if midPtQuad
-        splineF = FijLung.splineAtMidPoints(1, Nₛ)
-    else
-        splineF = FijLung.splineAtEndPoints(1, Nₛ)
-    end
+    array_of_times = FijLung.t_loc1()
+    Nₛ = Int(array_of_times.array.len)
+    location = 1  # Next to the visceral pleura.
+    splineF = FijLung.splineAtEndPoints(location, Nₛ)
 
-    # Consider the reference and initial states to be the same, i.e., κᵣ = κ₀.
-    λᵣ = PhysicalScalar(1.0, CGS_DIMENSIONLESS)
+    # The stretch from initial to reference state, i.e., κ₀ ↦ κᵣ  .
+    λᵣ = PF.PhysicalScalar(0.95, CGS_DIMENSIONLESS)
 
     # Build a data structure for Laplace kinematics at lung location 1.
-    dt = splineF.t[N] - splineF.t[N-1]
-    k = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, λᵣ)
+    dt = splineF.t[N+1] - splineF.t[N]
+    k = LK.FiberKinematics(dt, N, λᵣ)
 
     # Populate this data structure.
-    for n in 1:N
-        F′ₙ = splineF.F′[n+1]
-        λ′ₙ = F′ₙ[2,2]
-        LaplaceKinematics.advance!(k, λ′ₙ)
+    for n in 2:N+1
+        Fₙ₋₁ = splineF.F[n-1]
+        Fₙ   = splineF.F[n]
+        dλₙ = Fₙ[2,2] - Fₙ₋₁[2,2]
+        LaplaceKinematics.advance!(k, dλₙ)
     end
 
     # Convert this data structure to a JSON stream.
-    json_stream = PhysicalFields.openJSONWriter(myDirPath, "test1D.json")
-    LaplaceKinematics.toFile(k, json_stream)
-    PhysicalFields.closeJSONStream(json_stream)
+    json_stream = PF.openJSONWriter(my_dir_path, "test1D.json")
+    LK.toFile(k, json_stream)
+    PF.closeJSONStream(json_stream)
 
     # Retrieve this data structure from a JSON stream.
-    json_stream = PhysicalFields.openJSONReader(myDirPath, "test1D.json")
-    k1 = LaplaceKinematics.fromFile(LaplaceKinematics.FiberKinematics, json_stream)
-    PhysicalFields.closeJSONStream(json_stream)
+    json_stream = PF.openJSONReader(my_dir_path, "test1D.json")
+    k1 = LK.fromFile(LK.FiberKinematics, json_stream)
+    PF.closeJSONStream(json_stream)
 
     # Verify what was read in is equivalent to what was written to.
     equal = true
@@ -77,10 +82,10 @@ function persistence(midPtQuad::Bool, myDirPath::String)
         if k.λ′[i] ≠ k1.λ′[i]
             equal = false
         end
-        if k.ϵ[i] ≠ k1.ϵ[i]
+        if k.ε[i] ≠ k1.ε[i]
             equal = false
         end
-        if k.ϵ′[i] ≠ k1.ϵ′[i]
+        if k.ε′[i] ≠ k1.ε′[i]
             equal = false
         end
     end
@@ -92,29 +97,28 @@ function persistence(midPtQuad::Bool, myDirPath::String)
 end # persistence
 
 """
-Function:\n
-    figures1D(N, midPtQuad, myDirPath)\n
-where\n
-    N          is the number of nodes or knots in the B-spline.\n
-    midPtQuad  is true if a mid-point quadrature is to be used.\n
-    myDirPath  is the path where the user wants his file to be written.\n
-This function tests the exported functions of `LaplaceKinematics` for the 1D case; specifically, in the 2 direction, viz., in the direction of the spine.
+```julia
+figures1D(N)
+```
+where
+
+    N  is the number of nodes or knots in the B-spline.
+
+This function tests the exported functions of *LaplaceKinematics* for the 1D case; specifically, in the 2 direction, viz., in the direction of the spine.
 """
-function figures1D(N::Integer, midPtQuad::Bool, myDirPath::String)
+function figures1D(N::Int)
+    my_dir_path = string(pwd(), "/test/figures/")
+    if !isdir(my_dir_path)
+        mkdir(my_dir_path)
+    end
 
     CairoMakie.activate!(type = "png")
     println("For these figures, the number of intervals is N = ", string(N), ".")
 
     println("Creating B-splines for the deformation gradient data.")
-    if midPtQuad
-        splineF1 = FijLung.splineAtMidPoints(1, N) # near visceral pleura
-        splineF2 = FijLung.splineAtMidPoints(2, N) # deep in the lung
-        splineF3 = FijLung.splineAtMidPoints(3, N) # near bronchiole tube
-    else
-        splineF1 = FijLung.splineAtEndPoints(1, N) # near visceral pleura
-        splineF2 = FijLung.splineAtEndPoints(2, N) # deep in the lung
-        splineF3 = FijLung.splineAtEndPoints(3, N) # near bronchiole tube
-    end
+    splineF1 = FijLung.splineAtEndPoints(1, N) # near visceral pleura
+    splineF2 = FijLung.splineAtEndPoints(2, N) # deep in the lung
+    splineF3 = FijLung.splineAtEndPoints(3, N) # near bronchiole tube
 
     # The last splined node is not included in the plots because it may not be
     # 'natural', i.e., actual derivatives at the last node may not be accurate.
@@ -124,9 +128,9 @@ function figures1D(N::Integer, midPtQuad::Bool, myDirPath::String)
     t2 = zeros(Float64, N)
     t3 = zeros(Float64, N)
     for n in 1:N
-        t1[n] = get(splineF1.t[n])
-        t2[n] = get(splineF2.t[n])
-        t3[n] = get(splineF3.t[n])
+        t1[n] = PF.get(splineF1.t[n])
+        t2[n] = PF.get(splineF2.t[n])
+        t3[n] = PF.get(splineF3.t[n])
     end
 
     # These deformation gradient components associate with the 2 direction.
@@ -139,133 +143,115 @@ function figures1D(N::Integer, midPtQuad::Bool, myDirPath::String)
     λ3 = zeros(Float64, N)
     for n in 1:N
         Fᵢⱼ1 = splineF1.F[n]
-        λ1[n] = get(Fᵢⱼ1[2,2])
+        λ1[n] = PF.get(Fᵢⱼ1[2,2])
         Fᵢⱼ2 = splineF2.F[n]
-        λ2[n] = get(Fᵢⱼ2[2,2])
+        λ2[n] = PF.get(Fᵢⱼ2[2,2])
         Fᵢⱼ3 = splineF3.F[n]
-        λ3[n] = get(Fᵢⱼ3[2,2])
+        λ3[n] = PF.get(Fᵢⱼ3[2,2])
     end
-    # Create data arrays for the fiber stretch rates dλ/dt at the nodes.
-    λ′1 = zeros(Float64, N)
-    λ′2 = zeros(Float64, N)
-    λ′3 = zeros(Float64, N)
-    for n in 1:N
-        F′ᵢⱼ1 = splineF1.F′[n]
-        λ′1[n] = get(F′ᵢⱼ1[2,2])
-        F′ᵢⱼ2 = splineF2.F′[n]
-        λ′2[n] = get(F′ᵢⱼ2[2,2])
-        F′ᵢⱼ3 = splineF3.F′[n]
-        λ′3[n] = get(F′ᵢⱼ3[2,2])
-    end
-
+    
     println("Building the Laplace kinematics data structures.")
-    # Consider the reference and initial states to be the same, i.e., κᵣ = κ₀.
-    λᵣ = PhysicalScalar(1.0, CGS_STRETCH)
-    # Create the variable to hold stretch rates.
-    TIME_RATE = PhysicalFields.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
-    λ′ₙ = PhysicalScalar(TIME_RATE)
+    # The stretch from initial to reference state, i.e., κ₀ ↦ κᵣ  .
+    λᵣ = PF.PhysicalScalar(0.95, PF.CGS_DIMENSIONLESS)
+    
+    # Create the variable to hold stretch differentials.
+    dλₙ = PF.PhysicalScalar(PF.CGS_DIMENSIONLESS)
 
     # Build a data structure for Laplace kinematics at lung location 1.
-    dt = PhysicalScalar(t1[N]-t1[N-1], CGS_SECOND)
-    k1 = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, λᵣ)
+    dt = PF.PhysicalScalar(t1[N]-t1[N-1], PF.CGS_SECOND)
+    k1 = LK.FiberKinematics(dt, N, λᵣ)
     # Populate this data structure.
     for n in 2:N
-        set!(λ′ₙ, λ′1[n])
-        LaplaceKinematics.advance!(k1, λ′ₙ)
+        PF.set!(dλₙ, λ1[n]-λ1[n-1])
+        LK.advance!(k1, dλₙ)
     end
 
     # Build a data structure for Laplace kinematics at lung location 2.
-    set!(dt, t2[N]-t2[N-1])
-    k2 = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, λᵣ)
+    PF.set!(dt, t2[N]-t2[N-1])
+    k2 = LK.FiberKinematics(dt, N, λᵣ)
     # Populate this data structure.
     for n in 2:N
-        set!(λ′ₙ, λ′2[n])
-        LaplaceKinematics.advance!(k2, λ′ₙ)
+        PF.set!(dλₙ, λ2[n]-λ2[n-1])
+        LK.advance!(k2, dλₙ)
     end
 
     # Build a data structure for Laplace kinematics at lung location 3.
-    set!(dt, t3[N]-t3[N-1])
-    k3 = LaplaceKinematics.FiberKinematics(dt, N, midPtQuad, λᵣ)
+    PF.set!(dt, t3[N]-t3[N-1])
+    k3 = LK.FiberKinematics(dt, N, λᵣ)
     # Populate this data structure.
     for n in 2:N
-        set!(λ′ₙ, λ′3[n])
-        LaplaceKinematics.advance!(k3, λ′ₙ)
+        PF.set!(dλₙ, λ3[n]-λ3[n-1])
+        LK.advance!(k3, dλₙ)
     end
 
     # Create the figures.
-    println("Working on figures for ϵ and dϵ/dt.")
-    ϵ1 = zeros(Float64, N)
-    ϵ′1 = zeros(Float64, N)
-    ϵ2 = zeros(Float64, N)
-    ϵ′2 = zeros(Float64, N)
-    ϵ3 = zeros(Float64, N)
-    ϵ′3 = zeros(Float64, N)
+    println("Working on figures for ε and dε/dt.")
+    ε1 = zeros(Float64, N)
+    ε′1 = zeros(Float64, N)
+    ε2 = zeros(Float64, N)
+    ε′2 = zeros(Float64, N)
+    ε3 = zeros(Float64, N)
+    ε′3 = zeros(Float64, N)
     for n in 1:N
-        ϵ1[n] = get(k1.ϵ[n])
-        ϵ′1[n] = get(k1.ϵ′[n])
-        ϵ2[n] = get(k2.ϵ[n])
-        ϵ′2[n] = get(k2.ϵ′[n])
-        ϵ3[n] = get(k3.ϵ[n])
-        ϵ′3[n] = get(k3.ϵ′[n])
+        ε1[n] = PF.get(k1.ε[n])
+        ε′1[n] = PF.get(k1.ε′[n])
+        ε2[n] = PF.get(k2.ε[n])
+        ε′2[n] = PF.get(k2.ε′[n])
+        ε3[n] = PF.get(k3.ε[n])
+        ε′3[n] = PF.get(k3.ε′[n])
     end
     fig = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax = Axis(fig[1, 1];
         xlabel = "time (s)",
-        ylabel = "strain ϵ",
-        title = "Strain ϵ and its rate dϵ/dt.",
+        ylabel = "strain ε",
+        title = "Strain ε and its rate dε/dt.",
         titlesize = 24,
+        xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, ϵ1;
+    lines!(ax, t1, ε1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, ϵ2;
+    lines!(ax, t2, ε2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, ϵ3;
+    lines!(ax, t3, ε3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    if midPtQuad
-        save(string(myDirPath, "1DStrainAtMidPoints.png"), fig)
-    else
-        save(string(myDirPath, "1DStrainAtEndPoints.png"), fig)
-    end
+    save(string(my_dir_path, "1DStrain.png"), fig)
 
     fig = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
     ax = Axis(fig[1, 1];
         xlabel = "time (s)",
-        ylabel = "strain rate dϵ/dt (s⁻¹)",
+        ylabel = "strain rate dε/dt (s⁻¹)",
         xlabelsize = 20,
         ylabelsize = 20)
-    lines!(ax, t1, ϵ′1;
+    lines!(ax, t1, ε′1;
         linewidth = 3,
         linestyle = :solid,
         color = :black,
         label = "1: pleural")
-    lines!(ax, t2, ϵ′2;
+    lines!(ax, t2, ε′2;
         linewidth = 3,
         linestyle = :solid,
         color = :blue,
         label = "2: interior")
-    lines!(ax, t3, ϵ′3;
+    lines!(ax, t3, ε′3;
         linewidth = 3,
         linestyle = :solid,
         color = :red,
         label = "3: bronchiole")
     axislegend("Locations",
         position = :rt)
-    if midPtQuad
-        save(string(myDirPath, "1DStrainRateAtMidPoints.png"), fig)
-    else
-        save(string(myDirPath, "1DStrainRateAtEndPoints.png"), fig)
-    end
+    save(string(my_dir_path, "1DStrainRate.png"), fig)
 end # figures1D
 
 end # testLaplaceKinematics1D.jl
+
