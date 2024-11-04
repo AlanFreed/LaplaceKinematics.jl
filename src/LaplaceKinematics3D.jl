@@ -440,16 +440,16 @@ Type:\n
         dβ::    array of out-of-plane shear rates dβ/dt\n
         dγ::    array of in-plane shear rates dγ/dt\n
         δ::     array of dilatation strains δ\n
-        ϵ₁::    array of squeeze strains ϵ₁\n
-        ϵ₂::    array of squeeze strains ϵ₂\n
-        ϵ₃::    array of squeeze strains ϵ₃\n
+        ε₁::    array of squeeze strains ε₁\n
+        ε₂::    array of squeeze strains ε₂\n
+        ε₃::    array of squeeze strains ε₃\n
         γ₁::    array of shear strains γ₁\n
         γ₂::    array of shear strains γ₂\n
         γ₃::    array of shear strains γ₃\n
         dδ::    array of dilatation strain rates dδ/dt\n
-        dϵ₁::   array of squeeze strain rates dϵ₁/dt\n
-        dϵ₂::   array of squeeze strain rates dϵ₂/dt\n
-        dϵ₃::   array of squeeze strain rates dϵ₃/dt\n
+        dε₁::   array of squeeze strain rates dε₁/dt\n
+        dε₂::   array of squeeze strain rates dε₂/dt\n
+        dε₃::   array of squeeze strain rates dε₃/dt\n
         dγ₁::   array of shear strain rates dγ₁/dt\n
         dγ₂::   array of shear strain rates dγ₂/dt\n
         dγ₃::   array of shear strain rates dγ₃/dt\n
@@ -493,17 +493,17 @@ struct Kinematics3D
     dγ::    ArrScalar   # current in-plane shear rate for dγ/dt
     # Laplace strain attributes for deformation κᵣ ↦ κₙ
     δ::     ArrScalar   # dilatation strain δ
-    ϵ₁::    ArrScalar   # first squeeze strain ϵ₁
-    ϵ₂::    ArrScalar   # second squeeze strain ϵ₂
-    ϵ₃::    ArrScalar   # third squeeze strain ϵ₃
+    ε₁::    ArrScalar   # first squeeze strain ε₁
+    ε₂::    ArrScalar   # second squeeze strain ε₂
+    ε₃::    ArrScalar   # third squeeze strain ε₃
     γ₁::    ArrScalar   # first out-of-plane shear strain γ₁
     γ₂::    ArrScalar   # second out-of-plane shear strain γ₂
     γ₃::    ArrScalar   # third in-plane shear strain γ₃
     # Laplace strain-rate attributes
     dδ::    ArrScalar   # dilatation strain rate dδ/dt
-    dϵ₁::   ArrScalar   # first squeeze strain rate dϵ₁/dt
-    dϵ₂::   ArrScalar   # second squeeze strain rate dϵ₂/dt
-    dϵ₃::   ArrScalar   # third squeeze strain rate dϵ₃/dt
+    dε₁::   ArrScalar   # first squeeze strain rate dε₁/dt
+    dε₂::   ArrScalar   # second squeeze strain rate dε₂/dt
+    dε₃::   ArrScalar   # third squeeze strain rate dε₃/dt
     dγ₁::   ArrScalar   # first out-of-plane shear strain rate dγ₁/dt
     dγ₂::   ArrScalar   # second out-of-plane shear strain rate dγ₂/dt
     dγ₃::   ArrScalar   # third in-plane shear strain rate dγ₃/dt
@@ -683,12 +683,12 @@ function newKinematics3D(N::Integer, dt::PhysicalScalar, aᵣ::PhysicalScalar, b
     dγ  = newArrSca(N, dγ₀)
     δ₀  = newPhysicalScalar(log(∛((a₀ * b₀ * c₀) / (aᵣ * bᵣ * cᵣ))), STRETCH)
     δ   = newArrSca(N, δ₀)
-    ϵ₁₀ = newPhysicalScalar(log(∛((a₀ / aᵣ) * (bᵣ / b₀))), STRETCH)
-    ϵ₁  = newArrSca(N, ϵ₁₀)
-    ϵ₂₀ = newPhysicalScalar(log(∛((b₀ / bᵣ) * (cᵣ / c₀))), STRETCH)
-    ϵ₂  = newArrSca(N, ϵ₂₀)
-    ϵ₃₀ = newPhysicalScalar(log(∛((c₀ / cᵣ) * (aᵣ / a₀))), STRETCH)
-    ϵ₃  = newArrSca(N, ϵ₃₀)
+    ε₁₀ = newPhysicalScalar(log(∛((a₀ / aᵣ) * (bᵣ / b₀))), STRETCH)
+    ε₁  = newArrSca(N, ε₁₀)
+    ε₂₀ = newPhysicalScalar(log(∛((b₀ / bᵣ) * (cᵣ / c₀))), STRETCH)
+    ε₂  = newArrSca(N, ε₂₀)
+    ε₃₀ = newPhysicalScalar(log(∛((c₀ / cᵣ) * (aᵣ / a₀))), STRETCH)
+    ε₃  = newArrSca(N, ε₃₀)
     γ₁₀ = α₀ - αᵣ
     γ₁  = newArrSca(N, γ₁₀)
     γ₂₀ = β₀ - βᵣ
@@ -697,12 +697,12 @@ function newKinematics3D(N::Integer, dt::PhysicalScalar, aᵣ::PhysicalScalar, b
     γ₃  = newArrSca(N, γ₃₀)
     dδ₀  = newPhysicalScalar(0.0, RATE)
     dδ   = newArrSca(N, dδ₀)
-    dϵ₁₀ = newPhysicalScalar(0.0, RATE)
-    dϵ₁  = newArrSca(N, dϵ₁₀)
-    dϵ₂₀ = newPhysicalScalar(0.0, RATE)
-    dϵ₂  = newArrSca(N, dϵ₂₀)
-    dϵ₃₀ = newPhysicalScalar(0.0, RATE)
-    dϵ₃  = newArrSca(N, dϵ₃₀)
+    dε₁₀ = newPhysicalScalar(0.0, RATE)
+    dε₁  = newArrSca(N, dε₁₀)
+    dε₂₀ = newPhysicalScalar(0.0, RATE)
+    dε₂  = newArrSca(N, dε₂₀)
+    dε₃₀ = newPhysicalScalar(0.0, RATE)
+    dε₃  = newArrSca(N, dε₃₀)
     dγ₁₀ = newPhysicalScalar(0.0, RATE)
     dγ₁  = newArrSca(N, dγ₁₀)
     dγ₂₀ = newPhysicalScalar(0.0, RATE)
@@ -710,7 +710,7 @@ function newKinematics3D(N::Integer, dt::PhysicalScalar, aᵣ::PhysicalScalar, b
     dγ₃₀ = newPhysicalScalar(0.0, RATE)
     dγ₃  = newArrSca(N, dγ₃₀)
     # Create and return a data structure for Laplace kinematics.
-    return Kinematics3D(isEulerian, dt, UInt32(N), MInteger(n), MInteger(m), F, P, L, L⁻¹, G, Ω, Lᵣ, Lᵣ⁻¹, aᵣ, bᵣ, cᵣ, αᵣ, βᵣ, γᵣ, a, b, c, α, β, γ, da, db, dc, dα, dβ, dγ, δ, ϵ₁, ϵ₂, ϵ₃, γ₁, γ₂, γ₃, dδ, dϵ₁, dϵ₂, dϵ₃, dγ₁, dγ₂, dγ₃)
+    return Kinematics3D(isEulerian, dt, UInt32(N), MInteger(n), MInteger(m), F, P, L, L⁻¹, G, Ω, Lᵣ, Lᵣ⁻¹, aᵣ, bᵣ, cᵣ, αᵣ, βᵣ, γᵣ, a, b, c, α, β, γ, da, db, dc, dα, dβ, dγ, δ, ε₁, ε₂, ε₃, γ₁, γ₂, γ₃, dδ, dε₁, dε₂, dε₃, dγ₁, dγ₂, dγ₃)
 end
 
 """
@@ -983,12 +983,12 @@ function advance!(k::Kinematics3D, Fₙ::PhysicalTensor, restart::Bool=false)
     end
     δₙ = newPhysicalScalar(log(∛((aₙ * bₙ * cₙ) / (k.aᵣ * k.bᵣ * k.cᵣ))), STRETCH)
     k.δ[n] = δₙ
-    ϵ₁ₙ = newPhysicalScalar(log(∛((aₙ / k.aᵣ) * (k.bᵣ / bₙ))), STRETCH)
-    k.ϵ₁[n] = ϵ₁ₙ
-    ϵ₂ₙ = newPhysicalScalar(log(∛((bₙ / k.bᵣ) * (k.cᵣ / cₙ))), STRETCH)
-    k.ϵ₂[n] = ϵ₂ₙ
-    ϵ₃ₙ = newPhysicalScalar(log(∛((cₙ / k.cᵣ) * (k.aᵣ / aₙ))), STRETCH)
-    k.ϵ₃[n] = ϵ₃ₙ
+    ε₁ₙ = newPhysicalScalar(log(∛((aₙ / k.aᵣ) * (k.bᵣ / bₙ))), STRETCH)
+    k.ε₁[n] = ε₁ₙ
+    ε₂ₙ = newPhysicalScalar(log(∛((bₙ / k.bᵣ) * (k.cᵣ / cₙ))), STRETCH)
+    k.ε₂[n] = ε₂ₙ
+    ε₃ₙ = newPhysicalScalar(log(∛((cₙ / k.cᵣ) * (k.aᵣ / aₙ))), STRETCH)
+    k.ε₃[n] = ε₃ₙ
     γ₁ₙ = αₙ - k.αᵣ
     k.γ₁[n] = γ₁ₙ
     γ₂ₙ = βₙ - k.βᵣ
@@ -997,12 +997,12 @@ function advance!(k::Kinematics3D, Fₙ::PhysicalTensor, restart::Bool=false)
     k.γ₃[n] = γ₃ₙ
     dδₙ = (daₙ / aₙ + dbₙ / bₙ + dcₙ / cₙ) / 3
     k.dδ[n] = dδₙ
-    dϵ₁ₙ = (daₙ / aₙ - dbₙ / bₙ) / 3
-    k.dϵ₁[n] = dϵ₁ₙ
-    dϵ₂ₙ = (dbₙ / bₙ - dcₙ / cₙ) / 3
-    k.dϵ₂[n] = dϵ₂ₙ
-    dϵ₃ₙ = (dcₙ / cₙ - daₙ / aₙ) / 3
-    k.dϵ₃[n] = dϵ₃ₙ
+    dε₁ₙ = (daₙ / aₙ - dbₙ / bₙ) / 3
+    k.dε₁[n] = dε₁ₙ
+    dε₂ₙ = (dbₙ / bₙ - dcₙ / cₙ) / 3
+    k.dε₂[n] = dε₂ₙ
+    dε₃ₙ = (dcₙ / cₙ - daₙ / aₙ) / 3
+    k.dε₃[n] = dε₃ₙ
     dγ₁ₙ = dαₙ
     k.dγ₁[n] = dγ₁ₙ
     dγ₂ₙ = dβₙ

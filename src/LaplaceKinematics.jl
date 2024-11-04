@@ -1,6 +1,6 @@
 #=
 Created on Mon 22 Nov 2021
-updated on Mon 20 May 2024
+updated on Sun 03 Nov 2024
 -------------------------------------------------------------------------------
 References:
 1) Freed, A.D., Erel, V. and Moreno, M.R., "Conjugate stress/strain base pairs
@@ -13,13 +13,25 @@ References:
 3) Paul, S., Freed, A.D. and Clayton, J.D., "Coordinate indexing: On the use of
    Eulerian and Lagrangian Laplace stretches", Applications in Engineering
    Science, 5 (2021), 100029. DOI: 10.1016/j.apples.2020.100029.
+4) Freed, A.D., "A Technical Note: Two-Step PECE Methods for Approximating
+   Solutions To First- and Second-Order ODEs", arXiv/2056770, 1 Nov, 2017.
 -------------------------------------------------------------------------------
 =#
 
 """
-Module\n
-    LaplaceKinematics\n
-This module provides data structures for Lagrangian kinematic descriptions of motion, deformation, stretch and strain, and their rates in 1, 2 and 3 dimensions. These descriptions are based upon measures for stretch that are triangular in structure; specifically, an upper-triangular measure of stretch is used, which is referred to as the Lagrangian Laplace stretch.
+# LaplaceKinematics
+
+This module provides data structures for kinematic descriptions from a  Lagrangian perspective for motions, deformations, stretches and strains, and their rates in 1, 2 and 3 dimensions. In the 2D and 3D cases, these descriptions are based upon measures for stretch that are triangular in structure; specifically, an upper triangular measure of stretch is used, which is referred to as the Lagrangian Laplace stretch.
+
+## Installation
+
+To use this module, you will need to add the following Julia packages to your project:
+```
+using Pkg
+Pkg.add(url = "https://github.com/AlanFreed/PhysicalFields.jl")
+Pkg.add(url = "https://github.com/AlanFreed/LaplaceKinematics.jl")
+```
+In the various documentations of this package, *PF* is used as an alias for *PhysicalFields* and *LK* is used as an alias for *LaplaceKinematics*.
 """
 module LaplaceKinematics
 
@@ -27,6 +39,9 @@ using
     JSON3,
     PhysicalFields,
     StructTypes
+    
+import
+    PhysicalFields as PF
 
 export
     # Permutation Matrices
@@ -54,15 +69,15 @@ export
     advance!,
     update!
 
-const DIMENSIONLESS = PhysicalFields.CGS_DIMENSIONLESS
-const LENGTH        = PhysicalFields.CGS_LENGTH
-const LENGTH_RATE   = PhysicalFields.PhysicalUnits("CGS", 1, 0, 0, -1, 0, 0, 0)
-const AREA          = PhysicalFields.CGS_AREA
-const AREA_RATE     = PhysicalFields.PhysicalUnits("CGS", 2, 0, 0, -1, 0, 0, 0)
-const VOLUME        = PhysicalFields.CGS_VOLUME
-const VOLUME_RATE   = PhysicalFields.PhysicalUnits("CGS", 3, 0, 0, -1, 0, 0, 0)
-const TIME          = PhysicalFields.CGS_SECOND
-const TIME_RATE     = PhysicalFields.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
+const DIMENSIONLESS = PF.CGS_DIMENSIONLESS
+const LENGTH        = PF.CGS_LENGTH
+const LENGTH_RATE   = PF.PhysicalUnits("CGS", 1, 0, 0, -1, 0, 0, 0)
+const AREA          = PF.CGS_AREA
+const AREA_RATE     = PF.PhysicalUnits("CGS", 2, 0, 0, -1, 0, 0, 0)
+const VOLUME        = PF.CGS_VOLUME
+const VOLUME_RATE   = PF.PhysicalUnits("CGS", 3, 0, 0, -1, 0, 0, 0)
+const TIME          = PF.CGS_SECOND
+const TIME_RATE     = PF.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
 
 include("LaplaceKinematics1D.jl")
 
