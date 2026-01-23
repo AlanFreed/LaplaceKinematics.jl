@@ -1,10 +1,10 @@
 module testLaplaceKinematics1D
 
 using
-    CairoMakie,       # Pixel based figure construction.
     FijLung,
-    LaplaceKinematics,
-    PhysicalFields
+    .LaplaceKinematics,
+    PhysicalFields,
+    Plots
     
 import
     LaplaceKinematics as LK,
@@ -37,18 +37,18 @@ function persistence()
     splineF = FijLung.splineAtEndPoints(location, Nₛ)
 
     # The stretch from initial to reference state, i.e., κ₀ ↦ κᵣ  .
-    λᵣ = PF.PhysicalScalar(0.95, CGS_DIMENSIONLESS)
+    Lᵣ = PF.PhysicalScalar(0.95, CGS_LENGTH)
+    L₀ = PF.PhysicalScalar(1.00, CGS_LENGTH)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     dt = splineF.t[N+1] - splineF.t[N]
-    k = LK.FiberKinematics(dt, N, λᵣ)
+    k = LK.FiberKinematics(dt, N, Lᵣ, L₀)
 
     # Populate this data structure.
     for n in 2:N+1
-        Fₙ₋₁ = splineF.F[n-1]
-        Fₙ   = splineF.F[n]
-        dλₙ = Fₙ[2,2] - Fₙ₋₁[2,2]
-        LaplaceKinematics.advance!(k, dλₙ)
+        Fₙ = splineF.F[n]
+        Lₙ = Fₙ[2,2] * L₀
+        LaplaceKinematics.advance!(k, Lₙ)
     end
 
     # Convert this data structure to a JSON stream.
@@ -69,11 +69,23 @@ function persistence()
     if k.N ≠ k1.N
         equal = false
     end
-    if k.λᵣ ≠ k1.λᵣ
+    if k.Lᵣ ≠ k1.Lᵣ
+        equal = false
+    end
+    if k.L₀ ≠ k1.L₀
         equal = false
     end
     for i in 1:N+1
         if k.t[i] ≠ k1.t[i]
+            equal = false
+        end
+        if k.x[i] ≠ k1.x[i]
+            equal = false
+        end
+        if k.v[i] ≠ k1.v[i]
+            equal = false
+        end
+        if k.a[i] ≠ k1.a[i]
             equal = false
         end
         if k.λ[i] ≠ k1.λ[i]
@@ -95,6 +107,8 @@ function persistence()
         println("FAILED: The retrieved object did not equal the saved object.")
     end
 end # persistence
+
+#=
 
 """
 ```julia
@@ -252,6 +266,8 @@ function figures1D(N::Int)
         position = :rt)
     save(string(my_dir_path, "1DStrainRate.png"), fig)
 end # figures1D
+
+=#
 
 end # testLaplaceKinematics1D.jl
 
