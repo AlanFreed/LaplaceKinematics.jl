@@ -1,6 +1,6 @@
 #=
 Created on Mon 22 Nov 2021
-updated on Sun 03 Nov 2024
+updated on Wed 21 Jan 2026
 -------------------------------------------------------------------------------
 References:
 1) Freed, A.D., Erel, V. and Moreno, M.R., "Conjugate stress/strain base pairs
@@ -45,18 +45,18 @@ import
 
 export
     # Permutation Matrices
-    P2D₁,
-    P2D₂,
-    P3D₁,
-    P3D₂,
-    P3D₃,
-    P3D₄,
-    P3D₅,
-    P3D₆,
+    # P2D₁,
+    # P2D₂,
+    # P3D₁,
+    # P3D₂,
+    # P3D₃,
+    # P3D₄,
+    # P3D₅,
+    # P3D₆,
 
     # types
     FiberKinematics,
-    MembraneKinematics,
+    # MembraneKinematics,
     # Kinematics,
 
     # Methods
@@ -78,10 +78,12 @@ const VOLUME        = PF.CGS_VOLUME
 const VOLUME_RATE   = PF.PhysicalUnits("CGS", 3, 0, 0, -1, 0, 0, 0)
 const TIME          = PF.CGS_SECOND
 const TIME_RATE     = PF.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
+const VELOCITY      = PF.CGS_VELOCITY
+const ACCELERATION  = PF.CGS_ACCELERATION
 
 include("LaplaceKinematics1D.jl")
 
-include("LaplaceKinematics2D.jl")
+# include("LaplaceKinematics2D.jl")
 
 # include("LaplaceKinematics3D.jl")
 
