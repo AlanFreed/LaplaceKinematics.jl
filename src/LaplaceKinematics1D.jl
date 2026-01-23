@@ -190,6 +190,9 @@ struct FiberKinematics
             t[n+1] = n * dt
         end
         
+        # Create a mutable counter.
+        n = PF.MInteger(1)
+        
         # Create data arrays for the position, velocity and acceleration
         # for the centroid of a fiber, relative to a fiber end point.
         x = PF.ArrayOfPhysicalScalars(N+1, LENGTH)
