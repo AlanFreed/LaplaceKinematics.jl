@@ -10,28 +10,25 @@ struct FiberKinematics
     N::Int                         # number of intervals along a solution path
     n::PF.MInteger                 # a counter that ratchets from 1 to N+1
 
-    # Reference stretch (stretch at zero strain) of a 1D fiber element.
-    λᵣ::PF.PhysicalScalar          # reference stretch, λᵣ = Lᵣ/L₀, L is length
+    # Reference (strain free) and initial (start of analysis) lengths.
+    Lᵣ::PF.PhysicalScalar          # reference length of a fiber
+    L₀::PF.PhysicalScalar          # initial length of a fiber, 0 < Lᵣ ≤ L₀
 
     # History arrays are of length N+1 for holding the kinematic fields.
     # Initial values/conditions are stored in array location [1].
 
     # Array holding the independent variable, i.e., array of nodal times.
     t::PF.ArrayOfPhysicalScalars   # time at solution nodes
-
-    # Arrays for position, velocity and acceleration at the fiber centroid
-    # relative to an end of the fiber.
-    x::PF.ArrayOfPhysicalScalars   # position at solution nodes
-    v::PF.ArrayOfPhysicalScalars   # velocity at solution nodes
-    a::PF.ArrayOfPhysicalScalars   # acceleration at solution nodes
     
-    # Arrays for the fiber stretch and its rate.
+    # Arrays for the fiber stretch and its rates.
     λ::PF.ArrayOfPhysicalScalars   # stretch at solution nodes
     λ′::PF.ArrayOfPhysicalScalars  # stretch rate at solution nodes
+    λ″::PF.ArrayOfPhysicalScalars  # rate of stretch rate at solution nodes
 
-    # Arrays for the thermodynamic (true) strain and its rate.
+    # Arrays for the thermodynamic (true) strain and its rates.
     ε::PF.ArrayOfPhysicalScalars   # strain at solution nodes
     ε′::PF.ArrayOfPhysicalScalars  # strain rate at solution nodes
+    ε″::PF.ArrayOfPhysicalScalars  # rate of strain rate at solution nodes
 end
 ```
 where types *MInteger*, *PhysicalScalar* and *ArrayOfPhysicalScalars* are exported by module *PhysicalFields*. The fields comprising this type are self explanatory.
@@ -40,10 +37,10 @@ where types *MInteger*, *PhysicalScalar* and *ArrayOfPhysicalScalars* are export
 
 The constructor most likely to be used by a programmer is
 ```julia
-k = function FiberKinematics(N::Int, 
-                             dt::PF.PhysicalScalar,
-                             Lᵣ::PF.PhysicalScalar,
-                             L₀::PF.PhysicalScalar)
+k = FiberKinematics(N::Int, 
+                    dt::PF.PhysicalScalar,
+                    Lᵣ::PF.PhysicalScalar,
+                    L₀::PF.PhysicalScalar)
 ```
 which returns a new data structure *k* of type *FiberKinematics* that holds kinematic fields pertinent for the modeling of a 1D fiber. Arguments are: 
 
@@ -54,19 +51,18 @@ which returns a new data structure *k* of type *FiberKinematics* that holds kine
 
 The constructor used by JSON3 and other external constructors is
 ```julia
-k = FiberKinematics(dt::PF.PhysicalScalar, 
+k = FiberKinematics(dt::PF.PhysicalScalar,
                     N::Int, 
                     n::PF.MInteger, 
                     Lᵣ::PF.PhysicalScalar, 
                     L₀::PF.PhysicalScalar,
                     t::PF.ArrayOfPhysicalScalars,
-                    x::PF.ArrayOfPhysicalScalars,
-                    v::PF.ArrayOfPhysicalScalars,
-                    a::PF.ArrayOfPhysicalScalars,
                     λ::PF.ArrayOfPhysicalScalars,
                     λ′::PF.ArrayOfPhysicalScalars,
+                    λ″::PF.ArrayOfPhysicalScalars,
                     ε::PF.ArrayOfPhysicalScalars,
-                    ε′::PF.ArrayOfPhysicalScalars)
+                    ε′::PF.ArrayOfPhysicalScalars,
+                    ε″::PF.ArrayOfPhysicalScalars)
 ```
 which is a serialization of the fields comprising type *FiberKinematics*.
 
@@ -113,7 +109,7 @@ advance!(k::FiberKinematics, Lₙ::PhysicalScalar)
 ```
 Method `advance!` moves a solution from previous step *n-1* to current step *n* along a solution path with *N* solution nodes. It is assumed that fiber length is controlled (and is therefore known as a function of time).  Argument `Lₙ` denotes fiber length in the current configuration κₙ, which must have physical units of *LENGTH*.  From this length all fields are updated, with rates and accelerations being approximated using third-order accurate, finite-difference formulæ.
 
-This method updates counter *k.n*, plus it assigns entries to its history arrays at their nᵗʰ array location in this *k* data structure; specifically: position *k.x[n]*, velocity *k.v[n]*, acceleration *k.a[n]*, along with stretch *k.λ[n]* and its rate *k.λ′[n]*, plus strain *k.ε[n]* and its rate *k.ε′[n]*.
+This method updates counter *k.n*, plus it assigns entries to its history arrays at their nᵗʰ array location in this *k* data structure; specifically: stretch *k.λ[n]* and its rates *k.λ′[n]* and *k.λ″[n]*, plus strain *k.ε[n]* and its rates *k.ε′[n]* and *k.ε″[n]*.
 
 **Note**: It is not until step *n=6* that all tabulated derivatives in time become third-order accurate, or until step *n=8* that all tabulated second derivatives in time become third-order accurate. Derivatives at the early steps are updated with more accurate approximations as more data becomes available, until they become third-order accurate.
 
@@ -121,6 +117,6 @@ A solution at current node *k.n* can be refined by calling the method
 ```julia
 update!(k::FiberKinematics, Lₙ::PhysicalScalar)
 ```
-Method `update!` is to be called after `advance!`. It refines a solution at step *n* for an updated value of ` Lₙ` that is to be inserted into data structure `k`, e.g., updated by some external optimization process like a finite element engine.
+Method `update!` is to be called after `advance!`. It refines a solution at step *n* for an updated value of ` Lₙ` that is to be reinserted into data structure `k`, e.g., updated by some external optimization process like a finite element engine.
 
 [Previous](./README.md)  [Next](./README_2D.md)

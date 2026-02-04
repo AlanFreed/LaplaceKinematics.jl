@@ -2,13 +2,13 @@ To properly view this README file use, e.g., the Remarkable Markdown editor.
 
 # LaplaceKinematics.jl
 
-This module provides a **QR** or Gram-Schmidt factorization of a deformation gradient tensor denoted as **F** = F*ᵢⱼ* **E***ᵢ* ⊗ **E***ⱼ*, where *i*, *j* ∈ {1,2} for 2D analyses, or *i*, *j* ∈ {1,2,3} for 3D analyses, with F*ᵢⱼ* being its matrix of tensor components evaluated in basis (**E**₁, **E**₂) for 2D analyses, or in basis (**E**₁, **E**₂, **E**₃) for 3D analyses. Given **Q** =δ*ᵢⱼ* **e** *ᵢ* ⊗ **E**  *ⱼ* = *Qᵢⱼ* **e***ᵢ* ⊗ **e***ⱼ*, matrix *Qᵢⱼ* from **QR** is a proper orthogonal matrix known as the Gram rotation tensor, while matrix *Rᵢⱼ* of **R** = *Rᵢⱼ* **e** *ᵢ* ⊗ **e***ⱼ* from **QR** is an upper-triangular matrix with positive diagonal elements called the Laplace stretch tensor, as Laplace introduced the mathematical technique employed by Gram in his Ph.D. thesis that Schmidt later made popular.
+This module provides a **QR** or Gram-Schmidt factorization of a deformation gradient tensor denoted as **F** = Fᵢⱼ **E**ᵢ ⊗ **E**ⱼ, where *i*, *j* ∈ {1,2} for 2D analyses, or *i*, *j* ∈ {1,2,3} for 3D analyses, with Fᵢⱼ being its matrix of tensor components evaluated in basis (**E**₁, **E**₂) for 2D analyses, or in basis (**E**₁, **E**₂, **E**₃) for 3D analyses. Given **Q** = δᵢⱼ **e**ᵢ ⊗ **E**ⱼ = Qᵢⱼ **e**ᵢ ⊗ **e**ⱼ, matrix Qᵢⱼ from **QR** is a proper orthogonal matrix known as the Gram rotation tensor, while matrix Rᵢⱼ of **R** = Rᵢⱼ **e**ᵢ ⊗ **e**ⱼ from **QR** is an upper-triangular matrix with positive diagonal elements that in mechanics is called the Laplace stretch tensor, as Laplace introduced the mathematical technique employed by Gram in his Ph.D. thesis that Schmidt later made popular.
 
-In the mechanics literature, when analyzed from a Lagrangian perspective, such decompositions are often denoted as **F** = **RU**, where **R** denotes a rotation and **U** denotes a stretch. There are an infinite number of possible **RU** matrix products. The deconstruction of a matrix into a product of two matrices of which one is orthogonal is not unique. We are interested in the one wherein **R** is a Gram rotation matrix in what is otherwise commonly known as a **QR** matrix decomposition in the linear algebra literature.
+In the mechanics literature, when analyzed from a Lagrangian perspective, such decompositions are often denoted as **F** = **RU**, where **R** denotes a rotation and **U** denotes a stretch. There are an infinite number of possible **RU** matrix products that yield **F**. The deconstruction of a matrix into a product of two matrices of which one is orthogonal is not unique. We are interested in the one wherein **R** is a Gram rotation matrix in what is otherwise commonly known as a **QR** matrix decomposition in the linear algebra literature.
 
 A deformation gradient is a mapping from one material configuration into another. It is a two-state property, independent of the path traversed between these two states. All deformation gradients considered herein satisfy the following conditions: 
 
-1.  The deformation gradient **F** equates with the identity tensor **I** = δ*ᵢⱼ* **E** *ᵢ* ⊗ **E** *ⱼ* in its initial configuration κ₀, i.e., its motion is κ₀ ↦ κ₀. 
+1.  The deformation gradient **F** equates with the identity tensor **I** = δᵢⱼ **E**ᵢ ⊗ **E**ⱼ in its initial configuration κ₀, i.e., its motion is κ₀ ↦ κ₀. 
 
 2.  All other deformation gradients associate with motions of κ₀ ↦ κₙ, where κₙ is the configuration at current time tₙ. This includes a strain-free reference configuration κᵣ, which can be attained through a motion of κ₀ ↦ κᵣ.
 
@@ -30,16 +30,16 @@ In this documentation, *PF* is an alias for module *PhysicalFields* and *LK* is 
 The following physical units are used in this module:
 ```julia
 const DIMENSIONLESS = PF.CGS_DIMENSIONLESS
+const RATE          = PF.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
+const RATEofRATE    = PF.PhysicalUnits("CGS", 0, 0, 0, -2, 0, 0, 0)
+
+const TIME          = PF.CGS_SECOND
 const LENGTH        = PF.CGS_LENGTH
 const LENGTH_RATE   = PF.PhysicalUnits("CGS", 1, 0, 0, -1, 0, 0, 0)
 const AREA          = PF.CGS_AREA
 const AREA_RATE     = PF.PhysicalUnits("CGS", 2, 0, 0, -1, 0, 0, 0)
 const VOLUME        = PF.CGS_VOLUME
 const VOLUME_RATE   = PF.PhysicalUnits("CGS", 3, 0, 0, -1, 0, 0, 0)
-const TIME          = PF.CGS_SECOND
-const TIME_RATE     = PF.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
-const VELOCITY      = PF.CGS_VELOCITY
-const ACCELERATION  = PF.CGS_ACCELERATION
 ```
 
 1.  [Kinematics of 1D Fibers](./README_1D.md)
@@ -59,6 +59,8 @@ const ACCELERATION  = PF.CGS_ACCELERATION
 [Next](./README_1D.md)
 
 ## Version History
+
+Removed position, velocity and acceleration vectors for centroidal motions. All fields are point fields. Added second derivatives for stretch and strain.
 
 ### Version 0.2.0
 

@@ -1,7 +1,7 @@
 name = "LaplaceKinematics"
 uuid = "9f71644a-9970-46c9-94ba-70c89ea29c7d"
 authors = ["Alan Freed <alan.d.freed@proton.me>"]
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
