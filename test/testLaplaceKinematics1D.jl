@@ -1,8 +1,14 @@
+#=
+Created on Sat 19 Feb 2022
+Updated on Fri 23 Jan 2026
+=#
+
 module testLaplaceKinematics1D
 
 using
     FijLung,
-    .LaplaceKinematics,
+    LaplaceKinematics,
+    Measures,        # needed to pad white space (margins) around a plot
     PhysicalFields,
     Plots
     
@@ -24,7 +30,7 @@ persistence()
 This function tests writing and reading a *FiberKinematics* object to and from a file for its ability to recreate the object from file.
 """
 function persistence()
-    my_dir_path = string(pwd(), "/test/files/")
+    my_dir_path = string(pwd(), "/files/")
     if !isdir(my_dir_path)
         mkdir(my_dir_path)
     end
@@ -37,18 +43,18 @@ function persistence()
     splineF = FijLung.splineAtEndPoints(location, Nₛ)
 
     # The stretch from initial to reference state, i.e., κ₀ ↦ κᵣ  .
-    Lᵣ = PF.PhysicalScalar(0.95, CGS_LENGTH)
+    Lᵣ = PF.PhysicalScalar(0.98, CGS_LENGTH)
     L₀ = PF.PhysicalScalar(1.00, CGS_LENGTH)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     dt = splineF.t[N+1] - splineF.t[N]
-    k = LK.FiberKinematics(dt, N, Lᵣ, L₀)
+    k = LK.FiberKinematics(N, dt, Lᵣ, L₀)
 
     # Populate this data structure.
     for n in 2:N+1
         Fₙ = splineF.F[n]
         Lₙ = Fₙ[2,2] * L₀
-        LaplaceKinematics.advance!(k, Lₙ)
+        LK.advance!(k, Lₙ)
     end
 
     # Convert this data structure to a JSON stream.
@@ -79,25 +85,22 @@ function persistence()
         if k.t[i] ≠ k1.t[i]
             equal = false
         end
-        if k.x[i] ≠ k1.x[i]
-            equal = false
-        end
-        if k.v[i] ≠ k1.v[i]
-            equal = false
-        end
-        if k.a[i] ≠ k1.a[i]
-            equal = false
-        end
         if k.λ[i] ≠ k1.λ[i]
             equal = false
         end
         if k.λ′[i] ≠ k1.λ′[i]
             equal = false
         end
+        if k.λ″[i] ≠ k1.λ″[i]
+            equal = false
+        end
         if k.ε[i] ≠ k1.ε[i]
             equal = false
         end
         if k.ε′[i] ≠ k1.ε′[i]
+            equal = false
+        end
+        if k.ε″[i] ≠ k1.ε″[i]
             equal = false
         end
     end
@@ -107,8 +110,6 @@ function persistence()
         println("FAILED: The retrieved object did not equal the saved object.")
     end
 end # persistence
-
-#=
 
 """
 ```julia
@@ -126,7 +127,10 @@ function figures1D(N::Int)
         mkdir(my_dir_path)
     end
 
-    CairoMakie.activate!(type = "png")
+    # set the graphics backend to GR
+    ENV["QT_QPA_PLATFORM"] = "wayland"
+    gr()
+
     println("For these figures, the number of intervals is N = ", string(N), ".")
 
     println("Creating B-splines for the deformation gradient data.")
@@ -165,109 +169,103 @@ function figures1D(N::Int)
     end
     
     println("Building the Laplace kinematics data structures.")
-    # The stretch from initial to reference state, i.e., κ₀ ↦ κᵣ  .
-    λᵣ = PF.PhysicalScalar(0.95, PF.CGS_DIMENSIONLESS)
-    
-    # Create the variable to hold stretch differentials.
-    dλₙ = PF.PhysicalScalar(PF.CGS_DIMENSIONLESS)
+    # The stretch from initial to reference state, i.e., κ₀ ↦ κᵣ.
+    Lᵣ = PF.PhysicalScalar(0.98, PF.CGS_LENGTH)
+    L₀ = PF.PhysicalScalar(1.00, PF.CGS_LENGTH)
+    Lₙ = PF.PhysicalScalar(PF.CGS_LENGTH)
 
     # Build a data structure for Laplace kinematics at lung location 1.
     dt = PF.PhysicalScalar(t1[N]-t1[N-1], PF.CGS_SECOND)
-    k1 = LK.FiberKinematics(dt, N, λᵣ)
+    k1 = LK.FiberKinematics(N, dt, Lᵣ, L₀)
     # Populate this data structure.
     for n in 2:N
-        PF.set!(dλₙ, λ1[n]-λ1[n-1])
-        LK.advance!(k1, dλₙ)
+        Lₙ = L₀ * λ1[n]
+        LK.advance!(k1, Lₙ)
     end
 
     # Build a data structure for Laplace kinematics at lung location 2.
     PF.set!(dt, t2[N]-t2[N-1])
-    k2 = LK.FiberKinematics(dt, N, λᵣ)
+    k2 = LK.FiberKinematics(N, dt, Lᵣ, L₀)
     # Populate this data structure.
     for n in 2:N
-        PF.set!(dλₙ, λ2[n]-λ2[n-1])
-        LK.advance!(k2, dλₙ)
+        Lₙ = L₀ * λ2[n]
+        LK.advance!(k2, Lₙ)
     end
 
     # Build a data structure for Laplace kinematics at lung location 3.
     PF.set!(dt, t3[N]-t3[N-1])
-    k3 = LK.FiberKinematics(dt, N, λᵣ)
+    k3 = LK.FiberKinematics(N, dt, Lᵣ, L₀)
     # Populate this data structure.
     for n in 2:N
-        PF.set!(dλₙ, λ3[n]-λ3[n-1])
-        LK.advance!(k3, dλₙ)
+        Lₙ = L₀ * λ3[n]
+        LK.advance!(k3, Lₙ)
     end
 
     # Create the figures.
+    
     println("Working on figures for ε and dε/dt.")
     ε1 = zeros(Float64, N)
     ε′1 = zeros(Float64, N)
+    ε″1 = zeros(Float64, N)
     ε2 = zeros(Float64, N)
     ε′2 = zeros(Float64, N)
+    ε″2 = zeros(Float64, N)
     ε3 = zeros(Float64, N)
     ε′3 = zeros(Float64, N)
+    ε″3 = zeros(Float64, N)
     for n in 1:N
         ε1[n] = PF.get(k1.ε[n])
         ε′1[n] = PF.get(k1.ε′[n])
+        ε″1[n] = PF.get(k1.ε″[n])
         ε2[n] = PF.get(k2.ε[n])
         ε′2[n] = PF.get(k2.ε′[n])
+        ε″2[n] = PF.get(k2.ε″[n])
         ε3[n] = PF.get(k3.ε[n])
         ε′3[n] = PF.get(k3.ε′[n])
+        ε″3[n] = PF.get(k3.ε″[n])
     end
-    fig = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
-        xlabel = "time (s)",
-        ylabel = "strain ε",
-        title = "Strain ε and its rate dε/dt.",
-        titlesize = 24,
-        xlabelsize = 20,
-        ylabelsize = 20)
-    lines!(ax, t1, ε1;
-        linewidth = 3,
-        linestyle = :solid,
-        color = :black,
-        label = "1: pleural")
-    lines!(ax, t2, ε2;
-        linewidth = 3,
-        linestyle = :solid,
-        color = :blue,
-        label = "2: interior")
-    lines!(ax, t3, ε3;
-        linewidth = 3,
-        linestyle = :solid,
-        color = :red,
-        label = "3: bronchiole")
-    axislegend("Locations",
-        position = :rt)
-    save(string(my_dir_path, "1DStrain.png"), fig)
-
-    fig = Figure(; size = (809, 500)) # (500ϕ, 500), ϕ is golden ratio
-    ax = Axis(fig[1, 1];
-        xlabel = "time (s)",
-        ylabel = "strain rate dε/dt (s⁻¹)",
-        xlabelsize = 20,
-        ylabelsize = 20)
-    lines!(ax, t1, ε′1;
-        linewidth = 3,
-        linestyle = :solid,
-        color = :black,
-        label = "1: pleural")
-    lines!(ax, t2, ε′2;
-        linewidth = 3,
-        linestyle = :solid,
-        color = :blue,
-        label = "2: interior")
-    lines!(ax, t3, ε′3;
-        linewidth = 3,
-        linestyle = :solid,
-        color = :red,
-        label = "3: bronchiole")
-    axislegend("Locations",
-        position = :rt)
-    save(string(my_dir_path, "1DStrainRate.png"), fig)
+    
+    plot(t1, ε1, label="1: pleural", linecolor=:black, linewidth=3)
+    plot!(t2, ε2, label="2: interior", linecolor=:blue, linewidth=3)
+    plot!(t3, ε3, label="3: bronchiole", linecolor=:red, linewidth=3)
+    plot!(size=(809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    plot!(legend=:topright)
+    plot!(left_margin=3mm, right_margin=3mm, top_margin=3mm, bottom_margin=3mm)
+    title!("Strain ε and its Rate dε/dt")
+    xlabel!("time (s)")
+    ylabel!("strain ε")
+    
+    figName = string("1DStrain.png")
+    figPath = string(my_dir_path, figName)
+    savefig(figPath)
+    
+    plot(t1, ε′1, label="1: pleural", linecolor=:black, linewidth=3)
+    plot!(t2, ε′2, label="2: interior", linecolor=:blue, linewidth=3)
+    plot!(t3, ε′3, label="3: bronchiole", linecolor=:red, linewidth=3)
+    plot!(size=(809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    plot!(legend=:topright)
+    plot!(left_margin=3mm, right_margin=3mm, top_margin=3mm, bottom_margin=3mm)
+    xlabel!("time (s)")
+    ylabel!("strain rate dε/dt (s⁻¹)")
+    
+    figName = string("1DStrainRate.png")
+    figPath = string(my_dir_path, figName)
+    savefig(figPath)
+    
+    plot(t1, ε″1, label="1: pleural", linecolor=:black, linewidth=3)
+    plot!(t2, ε″2, label="2: interior", linecolor=:blue, linewidth=3)
+    plot!(t3, ε″3, label="3: bronchiole", linecolor=:red, linewidth=3)
+    plot!(size=(809, 500)) # (500ϕ, 500), ϕ is golden ratio
+    plot!(legend=:topright)
+    plot!(left_margin=3mm, right_margin=3mm, top_margin=3mm, bottom_margin=3mm)
+    xlabel!("time (s)")
+    ylabel!("rate of strain rate d²ε/dt² (s⁻²)")
+    
+    figName = string("1DRateOfStrainRate.png")
+    figPath = string(my_dir_path, figName)
+    savefig(figPath)
+    
 end # figures1D
-
-=#
 
 end # testLaplaceKinematics1D.jl
 
