@@ -15,20 +15,16 @@ The fields for an object of type `FiberKinematics` are:
 
     # Array holding the independent variable, i.e., array of nodal times.
     t   # time at the solution nodes
-
-    # Arrays for position, velocity and acceleration of the fiber centroid
-    # relative to a fiber end point.
-    x   # position at solution nodes
-    v   # velocity at solution nodes
-    a   # acceleration at solution nodes
     
     # Arrays for fiber stretch and its rate.
     λ   # stretch at solution nodes
     λ′  # stretch rate at solution nodes
+    λ″  # rate of stretch rate at solution nodes
         
     # Arrays for thermodynamic (true) strain and its rate.
     ε   # strain at solution nodes
     ε′  # strain rate at solution nodes
+    ε″  # rate of strain rate at solution nodes
     
 *FiberKinematics* is a data structure that contains the physical fields needed to describe the kinematics of a 1D fiber. The arrays in this data structure allow for a history of these kinematic fields to be used, e.g., in a constitutive analysis, or for graphing, etc.
 
@@ -59,13 +55,12 @@ k = FiberKinematics(dt::PF.PhysicalScalar,
                     Lᵣ::PF.PhysicalScalar, 
                     L₀::PF.PhysicalScalar, 
                     t::PF.ArrayOfPhysicalScalars, 
-                    x::PF.ArrayOfPhysicalScalars, 
-                    v::PF.ArrayOfPhysicalScalars, 
-                    a::PF.ArrayOfPhysicalScalars, 
                     λ::PF.ArrayOfPhysicalScalars,
                     λ′::PF.ArrayOfPhysicalScalars,
+                    λ″::PF.ArrayOfPhysicalScalars,
                     ε::PF.ArrayOfPhysicalScalars,
-                    ε′::PF.ArrayOfPhysicalScalars)
+                    ε′::PF.ArrayOfPhysicalScalars,
+                    ε″::PF.ArrayOfPhysicalScalars)
 ```
 
 ## Methods
@@ -130,20 +125,16 @@ struct FiberKinematics
 
     # Array holding the independent variable, i.e., array of nodal times.
     t::PF.ArrayOfPhysicalScalars   # time at solution nodes
-
-    # Arrays for position, velocity and acceleration at the fiber centroid,
-    # relative to a coordinate frame originating at one end of the fiber.
-    x::PF.ArrayOfPhysicalScalars   # centroidal position at solution nodes
-    v::PF.ArrayOfPhysicalScalars   # centroidal velocity at solution nodes
-    a::PF.ArrayOfPhysicalScalars   # centroidal acceleration at solution nodes
     
-    # Arrays for the fiber stretch and its rate.
+    # Arrays for the fiber stretch and its rates.
     λ::PF.ArrayOfPhysicalScalars   # stretch at solution nodes
     λ′::PF.ArrayOfPhysicalScalars  # stretch rate at solution nodes
+    λ″::PF.ArrayOfPhysicalScalars  # rate of stretch rate at solution nodes
 
-    # Arrays for the thermodynamic (true) strain and its rate.
+    # Arrays for the thermodynamic (true) strain and its rates.
     ε::PF.ArrayOfPhysicalScalars   # strain at solution nodes
     ε′::PF.ArrayOfPhysicalScalars  # strain rate at solution nodes
+    ε″::PF.ArrayOfPhysicalScalars  # rate of strain rate at solution nodes
 
     # Internal constructors.
 
@@ -181,7 +172,7 @@ struct FiberKinematics
             error("The initial length L₀ must have units of length.")
         end
         if L₀ < Lᵣ
-            error("The initial length L₀ must not be less than Lᵣ.")
+            error("Length L₀ must not be less than length Lᵣ.")
         end
 
         # Create and populate the array for nodal times.
@@ -192,36 +183,29 @@ struct FiberKinematics
         
         # Create a mutable counter.
         n = PF.MInteger(1)
-        
-        # Create data arrays for the position, velocity and acceleration
-        # for the centroid of a fiber, relative to a fiber end point.
-        x = PF.ArrayOfPhysicalScalars(N+1, LENGTH)
-        v = PF.ArrayOfPhysicalScalars(N+1, VELOCITY)
-        a = PF.ArrayOfPhysicalScalars(N+1, ACCELERATION)
-
-        # Assign to these arrays their initial values.
-        x[1] = L₀ / 2
-        v[1] = PF.PhysicalScalar(0.0, VELOCITY)
-        a[1] = PF.PhysicalScalar(0.0, ACCELERATION)
 
         # Create data arrays for the stretches and their rates.
         λ  = PF.ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
-        λ′ = PF.ArrayOfPhysicalScalars(N+1, TIME_RATE)
+        λ′ = PF.ArrayOfPhysicalScalars(N+1, RATE)
+        λ″ = PF.ArrayOfPhysicalScalars(N+1, RATEofRATE)
 
         # Assign to these arrays their initial values.
         λ[1]  = PF.PhysicalScalar(1.0, DIMENSIONLESS)
-        λ′[1] = PF.PhysicalScalar(0.0, TIME_RATE)
+        λ′[1] = PF.PhysicalScalar(0.0, RATE)
+        λ″[1] = PF.PhysicalScalar(0.0, RATEofRATE)
 
         # Create data arrays for thermodynamic strain and its rate: κᵣ ↦ κₙ.
         ε  = PF.ArrayOfPhysicalScalars(N+1, DIMENSIONLESS)
-        ε′ = PF.ArrayOfPhysicalScalars(N+1, TIME_RATE)
+        ε′ = PF.ArrayOfPhysicalScalars(N+1, RATE)
+        ε″ = PF.ArrayOfPhysicalScalars(N+1, RATEofRATE)
 
         # Assign to these arrays their initial values.
         ε[1]  = PF.PhysicalScalar(log(L₀/Lᵣ), DIMENSIONLESS)
-        ε′[1] = PF.PhysicalScalar(0.0, TIME_RATE)
+        ε′[1] = PF.PhysicalScalar(0.0, RATE)
+        ε″[1] = PF.PhysicalScalar(0.0, RATEofRATE)
 
         # Return a new data structure for managing kinematics of a 1D fiber.
-        new(dt, N, n, Lᵣ, L₀, t, x, v, a, λ, λ′, ε, ε′)::FiberKinematics
+        new(dt, N, n, Lᵣ, L₀, t, λ, λ′, λ″, ε, ε′, ε″)::FiberKinematics
     end
 
     # The internal constructor used by JSON3 and other external constructors.
@@ -232,14 +216,13 @@ struct FiberKinematics
                              Lᵣ::PF.PhysicalScalar, 
                              L₀::PF.PhysicalScalar,
                              t::PF.ArrayOfPhysicalScalars,
-                             x::PF.ArrayOfPhysicalScalars,
-                             v::PF.ArrayOfPhysicalScalars,
-                             a::PF.ArrayOfPhysicalScalars,
                              λ::PF.ArrayOfPhysicalScalars,
                              λ′::PF.ArrayOfPhysicalScalars,
+                             λ″::PF.ArrayOfPhysicalScalars,
                              ε::PF.ArrayOfPhysicalScalars,
-                             ε′::PF.ArrayOfPhysicalScalars)
-        new(dt, N, n, Lᵣ, L₀, t, x, v, a, λ, λ′, ε, ε′)::FiberKinematics
+                             ε′::PF.ArrayOfPhysicalScalars,
+                             ε″::PF.ArrayOfPhysicalScalars)
+        new(dt, N, n, Lᵣ, L₀, t, λ, λ′, λ″, ε, ε′, ε″)::FiberKinematics
     end
 end # FiberKinematics
 
@@ -252,14 +235,13 @@ function Base.:(copy)(k::FiberKinematics)::FiberKinematics
     Lᵣ = copy(k.Lᵣ)
     L₀ = copy(k.L₀)
     t  = copy(k.t)
-    x  = copy(k.x)
-    v  = copy(k.v)
-    a  = copy(k.a)
     λ  = copy(k.λ)
     λ′ = copy(k.λ′)
+    λ″ = copy(k.λ″)
     ε  = copy(k.ε)
     ε′ = copy(k.ε′)
-    return FiberKinematics(dt, N, n, Lᵣ, L₀, t, x, v, a, λ, λ′, ε, ε′)
+    ε″ = copy(k.ε″)
+    return FiberKinematics(dt, N, n, Lᵣ, L₀, t, λ, λ′, λ″, ε, ε′, ε″)
 end
 
 # The histories of FiberKinematics are to be graphed, not printed, 
@@ -319,78 +301,22 @@ function advance!(k::FiberKinematics, Lₙ::PF.PhysicalScalar)
     #    Forward  difference:  ∆fₙ = fₙ₊₁ - fₙ
     #    Backward difference:  ∇fₙ = fₙ - fₙ₋₁
     
-    # Approximate centroidal position, velocity and acceleration.
-
-    k.x[n] = Lₙ / 2
+    # Advance the stretch and its rates.
     
-    # Velocities are accurate to a third-order error, viz., ∇⁴/4h.
-    if n == 2
-        # first-order estimates
-        k.v[1] = (k.x[2] - k.x[1]) / k.dt   # forward  difference
-        k.v[2] = (k.x[2] - k.x[1]) / k.dt   # backward difference
-    elseif n == 3
-        # second-order estimates
-        k.v[1] = (-k.x[3] + 4k.x[2] - 3k.x[1]) / (2k.dt)   # forward
-        k.v[2] = ( k.x[3]      -       k.x[1]) / (2k.dt)   # central
-        k.v[3] = (3k.x[3] - 4k.x[2] +  k.x[1]) / (2k.dt)   # backward
-    elseif n == 4
-        # third-order estimates
-        k.v[1] = ( 2k.x[4] -  9k.x[3] + 18k.x[2] - 11k.x[1]) / (6k.dt)
-        k.v[4] = (11k.x[4] - 18k.x[3] +  9k.x[2] -  2k.x[1]) / (6k.dt)
-    elseif n == 5
-        k.v[2] = ( 2k.x[5] -  9k.x[4] + 18k.x[3] - 11k.x[2]) / (6k.dt)
-        k.v[5] = (11k.x[5] - 18k.x[4] +  9k.x[3] -  2k.x[2]) / (6k.dt)
-    elseif n == 6
-        k.v[3] = ( 2k.x[6] -  9k.x[5] + 18k.x[4] - 11k.x[3]) / (6k.dt)
-        k.v[6] = (11k.x[6] - 18k.x[5] +  9k.x[4] -  2k.x[3]) / (6k.dt)
-    else
-        k.v[n] = (11k.x[n] - 18k.x[n-1] + 9k.x[n-2] - 2k.x[n-3]) / (6k.dt)
-    end
-    
-    # Accelerations are accurate to a third-order error, viz., 5∇⁵/6h².
-    if n == 2
-        k.a[2] = PF.PhysicalScalar(0.0, ACCELERATION)
-    elseif n == 3
-        # first-order estimate
-        k.a[2] = (k.x[3] - 2k.x[2] + k.x[1]) / (k.dt*k.dt)
-        k.a[3] = PF.PhysicalScalar(0.0, ACCELERATION)
-    elseif n == 4
-        # first- and second-order estimates
-        k.a[1] = (-k.x[4] + 4k.x[3] - 5k.x[2] + 2k.x[1]) / (k.dt*k.dt)
-        k.a[3] = ( k.x[4] - 2k.x[3] +  k.x[2])           / (k.dt*k.dt)
-        k.a[4] = (2k.x[4] - 5k.x[3] + 4k.x[2] -  k.x[1]) / (k.dt*k.dt)
-    elseif n == 5
-        # second- and third-order estimates
-        k.a[1] = (11k.x[5] -  56k.x[4] + 114k.x[3] - 104k.x[2] + 35k.x[1]) / (k.dt*k.dt)
-        k.a[2] = ( -k.x[5] +   4k.x[4] -   5k.x[3] +   2k.x[2]) / (k.dt*k.dt)
-        k.a[5] = (35k.x[5] - 104k.x[4] + 114k.x[3] -  56k.x[2] + 11k.x[1]) / (k.dt*k.dt)
-    elseif n == 6
-        k.a[2] = (11k.x[6] -  56k.x[5] + 114k.x[4] - 104k.x[3] + 35k.x[2]) / (k.dt*k.dt)
-        k.a[3] = ( -k.x[6] +   4k.x[5] -   5k.x[4] +   2k.x[3]) / (k.dt*k.dt)
-        k.a[6] = (35k.x[6] - 104k.x[5] + 114k.x[4] -  56k.x[3] + 11k.x[2]) / (k.dt*k.dt)
-    elseif n == 7
-        # third-order estimates
-        k.a[3] = (11k.x[7] -  56k.x[6] + 114k.x[5] - 104k.x[4] + 35k.x[3]) / (k.dt*k.dt)
-        k.a[7] = (35k.x[7] - 104k.x[6] + 114k.x[5] -  56k.x[4] + 11k.x[3]) / (k.dt*k.dt)
-    elseif n == 8
-        k.a[4] = (11k.x[8] -  56k.x[7] + 114k.x[6] - 104k.x[5] + 35k.x[4]) / (k.dt*k.dt)
-        k.a[8] = (35k.x[8] - 104k.x[7] + 114k.x[6] -  56k.x[5] + 11k.x[4]) / (k.dt*k.dt)
-    else   
-        k.a[n] = (35k.x[n] - 104k.x[n-1] + 114k.x[n-2] - 56k.x[n-3] + 11k.x[n-4]) / (k.dt*k.dt)
-    end
-    
-    # Advance the stretch and its rate.
     k.λ[n] = Lₙ / k.L₀
     
-    # Stretch rates that are accurate to a third-order error, viz., ∇⁴/4h.
+    # Stretch rates are accurate to a third-order error, viz., ∇⁴/4h.
     if n == 2
-        k.λ′[1] = (k.λ[2] - k.λ[1]) / k.dt
-        k.λ′[2] = (k.λ[2] - k.λ[1]) / k.dt
+        # first-order estimates
+        k.λ′[1] = (k.λ[2] - k.λ[1]) / k.dt   # forward  difference
+        k.λ′[2] = (k.λ[2] - k.λ[1]) / k.dt   # backward difference
     elseif n == 3
-        k.λ′[1] = (-k.λ[3] + 4k.λ[2] - 3k.λ[1]) / (2k.dt)
-        k.λ′[2] = ( k.λ[3]      -       k.λ[1]) / (2k.dt)
-        k.λ′[3] = (3k.λ[3] - 4k.λ[2] +  k.λ[1]) / (2k.dt)
+        # second-order estimates
+        k.λ′[1] = (-k.λ[3] + 4k.λ[2] - 3k.λ[1]) / (2k.dt)   # forward
+        k.λ′[2] = ( k.λ[3]      -       k.λ[1]) / (2k.dt)   # central
+        k.λ′[3] = (3k.λ[3] - 4k.λ[2] +  k.λ[1]) / (2k.dt)   # backward
     elseif n == 4
+        # third-order estimates
         k.λ′[1] = ( 2k.λ[4] -  9k.λ[3] + 18k.λ[2] - 11k.λ[1]) / (6k.dt)
         k.λ′[4] = (11k.λ[4] - 18k.λ[3] +  9k.λ[2] -  2k.λ[1]) / (6k.dt)
     elseif n == 5
@@ -402,8 +328,40 @@ function advance!(k::FiberKinematics, Lₙ::PF.PhysicalScalar)
     else
         k.λ′[n] = (11k.λ[n] - 18k.λ[n-1] + 9k.λ[n-2] - 2k.λ[n-3]) / (6k.dt)
     end
+    
+    # Rates of stretch rates are accurate to a third-order error, viz., 5∇⁵/6h².
+    if n == 2
+        k.λ″[2] = PF.PhysicalScalar(0.0, RATEofRATE)
+    elseif n == 3
+        # first-order estimate
+        k.λ″[2] = (k.λ[3] - 2k.λ[2] + k.λ[1]) / (k.dt*k.dt)
+        k.λ″[3] = PF.PhysicalScalar(0.0, RATEofRATE)
+    elseif n == 4
+        # first- and second-order estimates
+        k.λ″[1] = (-k.λ[4] + 4k.λ[3] - 5k.λ[2] + 2k.λ[1]) / (k.dt*k.dt)
+        k.λ″[3] = ( k.λ[4] - 2k.λ[3] +  k.λ[2])           / (k.dt*k.dt)
+        k.λ″[4] = (2k.λ[4] - 5k.λ[3] + 4k.λ[2] -  k.λ[1]) / (k.dt*k.dt)
+    elseif n == 5
+        # second- and third-order estimates
+        k.λ″[1] = (11k.λ[5] -  56k.λ[4] + 114k.λ[3] - 104k.λ[2] + 35k.λ[1]) / (k.dt*k.dt)
+        k.λ″[2] = ( -k.λ[5] +   4k.λ[4] -   5k.λ[3] +   2k.λ[2])            / (k.dt*k.dt)
+        k.λ″[5] = (35k.λ[5] - 104k.λ[4] + 114k.λ[3] -  56k.λ[2] + 11k.λ[1]) / (k.dt*k.dt)
+    elseif n == 6
+        k.λ″[2] = (11k.λ[6] -  56k.λ[5] + 114k.λ[4] - 104k.λ[3] + 35k.λ[2]) / (k.dt*k.dt)
+        k.λ″[3] = ( -k.λ[6] +   4k.λ[5] -   5k.λ[4] +   2k.λ[3])            / (k.dt*k.dt)
+        k.λ″[6] = (35k.λ[6] - 104k.λ[5] + 114k.λ[4] -  56k.λ[3] + 11k.λ[2]) / (k.dt*k.dt)
+    elseif n == 7
+        # third-order estimates
+        k.λ″[3] = (11k.λ[7] -  56k.λ[6] + 114k.λ[5] - 104k.λ[4] + 35k.λ[3]) / (k.dt*k.dt)
+        k.λ″[7] = (35k.λ[7] - 104k.λ[6] + 114k.λ[5] -  56k.λ[4] + 11k.λ[3]) / (k.dt*k.dt)
+    elseif n == 8
+        k.λ″[4] = (11k.λ[8] -  56k.λ[7] + 114k.λ[6] - 104k.λ[5] + 35k.λ[4]) / (k.dt*k.dt)
+        k.λ″[8] = (35k.λ[8] - 104k.λ[7] + 114k.λ[6] -  56k.λ[5] + 11k.λ[4]) / (k.dt*k.dt)
+    else   
+        k.λ″[n] = (35k.λ[n] - 104k.λ[n-1] + 114k.λ[n-2] - 56k.λ[n-3] + 11k.λ[n-4]) / (k.dt*k.dt)
+    end
 
-    # Advance the strain and its rate.
+    # Advance the strain and its rates.
     
     k.ε[n] = PF.PhysicalScalar(log(Lₙ/k.Lᵣ), DIMENSIONLESS)
     
@@ -425,6 +383,33 @@ function advance!(k::FiberKinematics, Lₙ::PF.PhysicalScalar)
         k.ε′[6] = k.λ′[6] / k.λ[6]
     else
         k.ε′[n] = k.λ′[n] / k.λ[n]
+    end
+    
+    if n == 2
+        k.ε″[2] = (k.λ[2]*k.λ″[2] - k.λ′[2]*k.λ′[2]) / (k.λ[2]*k.λ[2])
+    elseif n == 3
+        k.ε″[2] = (k.λ[2]*k.λ″[2] - k.λ′[2]*k.λ′[2]) / (k.λ[2]*k.λ[2])
+        k.ε″[3] = (k.λ[3]*k.λ″[3] - k.λ′[3]*k.λ′[3]) / (k.λ[3]*k.λ[3])
+    elseif n == 4
+        k.ε″[1] = (k.λ[1]*k.λ″[1] - k.λ′[1]*k.λ′[1]) / (k.λ[1]*k.λ[1])
+        k.ε″[3] = (k.λ[3]*k.λ″[3] - k.λ′[3]*k.λ′[3]) / (k.λ[3]*k.λ[3])
+        k.ε″[4] = (k.λ[4]*k.λ″[4] - k.λ′[4]*k.λ′[4]) / (k.λ[4]*k.λ[4])
+    elseif n == 5
+        k.ε″[1] = (k.λ[1]*k.λ″[1] - k.λ′[1]*k.λ′[1]) / (k.λ[1]*k.λ[1])
+        k.ε″[2] = (k.λ[2]*k.λ″[2] - k.λ′[2]*k.λ′[2]) / (k.λ[2]*k.λ[2])
+        k.ε″[5] = (k.λ[5]*k.λ″[5] - k.λ′[5]*k.λ′[5]) / (k.λ[5]*k.λ[5])
+    elseif n == 6
+        k.ε″[2] = (k.λ[2]*k.λ″[2] - k.λ′[2]*k.λ′[2]) / (k.λ[2]*k.λ[2])
+        k.ε″[3] = (k.λ[3]*k.λ″[3] - k.λ′[3]*k.λ′[3]) / (k.λ[3]*k.λ[3])
+        k.ε″[6] = (k.λ[6]*k.λ″[6] - k.λ′[6]*k.λ′[6]) / (k.λ[6]*k.λ[6])
+    elseif n == 7
+        k.ε″[3] = (k.λ[3]*k.λ″[3] - k.λ′[3]*k.λ′[3]) / (k.λ[3]*k.λ[3])
+        k.ε″[7] = (k.λ[7]*k.λ″[7] - k.λ′[7]*k.λ′[7]) / (k.λ[7]*k.λ[7])
+    elseif n == 8
+        k.ε″[4] = (k.λ[4]*k.λ″[4] - k.λ′[4]*k.λ′[4]) / (k.λ[4]*k.λ[4])
+        k.ε″[8] = (k.λ[8]*k.λ″[8] - k.λ′[8]*k.λ′[8]) / (k.λ[8]*k.λ[8])
+    else
+        k.ε″[n] = (k.λ[n]*k.λ″[n] - k.λ′[n]*k.λ′[n]) / (k.λ[n]*k.λ[n])
     end
     
     return nothing

@@ -21,12 +21,12 @@ References:
 """
 # LaplaceKinematics
 
-This module provides data structures for kinematic descriptions from a  Lagrangian perspective for motions, deformations, stretches and strains, and their rates in 1, 2 and 3 dimensions. In the 2D and 3D cases, these descriptions are based upon measures for stretch that are triangular in structure; specifically, an upper triangular measure of stretch is used, which is referred to as the Lagrangian Laplace stretch.
+This module provides data structures for kinematic descriptions from a Lagrangian perspective for stretches and strains, plus their first- and second-order rates in 1, 2 and 3 dimensions. In the 2D and 3D cases, these descriptions are based upon measures for stretch that are triangular in structure; specifically, an upper triangular measure of stretch is used, which is referred to as the Lagrangian Laplace stretch.
 
 ## Installation
 
 To use this module, you will need to add the following Julia packages to your project:
-```
+```julia
 using Pkg
 Pkg.add(url = "https://github.com/AlanFreed/PhysicalFields.jl")
 Pkg.add(url = "https://github.com/AlanFreed/LaplaceKinematics.jl")
@@ -70,16 +70,16 @@ export
     update!
 
 const DIMENSIONLESS = PF.CGS_DIMENSIONLESS
+const RATE          = PF.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
+const RATEofRATE    = PF.PhysicalUnits("CGS", 0, 0, 0, -2, 0, 0, 0)
+
+const TIME          = PF.CGS_SECOND
 const LENGTH        = PF.CGS_LENGTH
 const LENGTH_RATE   = PF.PhysicalUnits("CGS", 1, 0, 0, -1, 0, 0, 0)
 const AREA          = PF.CGS_AREA
 const AREA_RATE     = PF.PhysicalUnits("CGS", 2, 0, 0, -1, 0, 0, 0)
 const VOLUME        = PF.CGS_VOLUME
 const VOLUME_RATE   = PF.PhysicalUnits("CGS", 3, 0, 0, -1, 0, 0, 0)
-const TIME          = PF.CGS_SECOND
-const TIME_RATE     = PF.PhysicalUnits("CGS", 0, 0, 0, -1, 0, 0, 0)
-const VELOCITY      = PF.CGS_VELOCITY
-const ACCELERATION  = PF.CGS_ACCELERATION
 
 include("LaplaceKinematics1D.jl")
 
